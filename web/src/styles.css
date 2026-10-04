@@ -434,6 +434,15 @@ body {
   font-size: 24px;
   cursor: default;
 }
+.cp-slot-empty {
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  font-size: 13px;
+  cursor: default;
+  border-style: dashed;
+  background: transparent;
+}
 
 /* owner:全部生灵挑选区 */
 .cp-others {

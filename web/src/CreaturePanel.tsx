@@ -24,7 +24,7 @@ export function CreaturePanel() {
   const [err, setErr] = useState('')
   const [descr, setDescr] = useState('')
   const [creating, setCreating] = useState(false)
-  const [scrubbing, setScrubbing] = useState(false)
+  const [pinned, setPinned] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +65,7 @@ export function CreaturePanel() {
 
   useEffect(() => {
     if (compiled) setDay(compiled.matureDay)
+    setPinned(false)
   }, [compiled])
 
   /* ---- 改名 ---- */
@@ -168,7 +169,7 @@ export function CreaturePanel() {
                 dna={compiled.cc.dna}
                 rig={compiled.cc.rig}
                 box={320}
-                fixedDay={scrubbing ? day : undefined}
+                fixedDay={pinned ? day : undefined}
                 matureDay={compiled.matureDay}
               />
             </div>
@@ -204,9 +205,11 @@ export function CreaturePanel() {
             min={0}
             max={compiled.matureDay}
             value={day}
-            onChange={(e) => setDay(Number(e.target.value))}
-            onPointerDown={() => setScrubbing(true)}
-            onPointerUp={() => setScrubbing(false)}
+            onChange={(e) => {
+              setDay(Number(e.target.value))
+              setPinned(true)
+            }}
+            onPointerDown={() => setPinned(true)}
           />
           <span className="cp-day">
             第 {day} 天 · {STAGE_LABELS[Math.min(STAGE_LABELS.length - 1, Math.floor((day / compiled.matureDay) * STAGE_LABELS.length))] ?? ''}
@@ -230,8 +233,13 @@ export function CreaturePanel() {
             <span className="cp-slot-score">{it.total.toFixed(0)}</span>
           </button>
         ))}
-        {!isOwner && slots.length < max && <div className="cp-slot cp-slot-ph">+</div>}
-        {isOwner && slots.length === 0 && <p className="cp-empty">还没有选中参与排行的生灵 —— 在下方「全部生灵」里挑选。</p>}
+        {isOwner
+          ? Array.from({ length: Math.max(0, max - slots.length) }, (_, i) => (
+              <div key={`ph${i}`} className="cp-slot cp-slot-empty">
+                空
+              </div>
+            ))
+          : slots.length < max && <div className="cp-slot cp-slot-ph">+</div>}
       </section>
 
       {/* owner:全部生灵,点一下加入/移出参排(手动精选 Top5) */}

@@ -174,27 +174,36 @@ export function CreatureField({ refreshMs = 5 * 60 * 1000 }: { refreshMs?: numbe
   )
 }
 
+const BOX = 120 // 生灵本体 96 + 名字行,贴边留白用
+
+/** 把一个归一化点(0..1)贴到最近的一条视口边上,沿边自由分布(不限于四角)。 */
 function toViewport(nx: number, ny: number): { x: number; y: number } {
-  const m = 24
+  const m = 16
   const w = window.innerWidth
   const h = window.innerHeight
-  // 把归一化坐标压到四周一圈(留出中间空白),简单实现:直接线性映射到整视口再用边距夹住
-  return {
-    x: Math.min(w - 120 - m, Math.max(m, nx * (w - 120))),
-    y: Math.min(h - 120 - m, Math.max(m, ny * (h - 120))),
-  }
+  const maxX = Math.max(m, w - BOX - m)
+  const maxY = Math.max(m, h - BOX - m)
+  const px = m + Math.min(1, Math.max(0, nx)) * (maxX - m)
+  const py = m + Math.min(1, Math.max(0, ny)) * (maxY - m)
+  const dL = px - m
+  const dR = maxX - px
+  const dT = py - m
+  const dB = maxY - py
+  const min = Math.min(dL, dR, dT, dB)
+  if (min === dL) return { x: m, y: py }
+  if (min === dR) return { x: maxX, y: py }
+  if (min === dT) return { x: px, y: m }
+  return { x: px, y: maxY }
 }
 
-/** 没有 pos 时的兜底:按 id 散到四周 */
+/** 没有 pos 时的兜底:按 id 散到四周任意位置(贴边,不限于四角)。 */
 function edgeFallback(id: string): { x: number; y: number } {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
-  const corners: { x: number; y: number }[] = [
-    { x: 0.05, y: 0.12 },
-    { x: 0.9, y: 0.1 },
-    { x: 0.08, y: 0.82 },
-    { x: 0.88, y: 0.8 },
-    { x: 0.5, y: 0.06 },
-  ]
-  return corners[h % corners.length] ?? { x: 0.1, y: 0.1 }
+  // 哈希 → 0..1 的周长参数 → 单位方框边上的归一化点
+  const t = ((h % 1000) / 1000) * 4
+  if (t < 1) return { x: t, y: 0 }
+  if (t < 2) return { x: 1, y: t - 1 }
+  if (t < 3) return { x: 1 - (t - 2), y: 1 }
+  return { x: 0, y: 1 - (t - 3) }
 }

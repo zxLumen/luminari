@@ -80,6 +80,7 @@ export interface RankRow {
   craft: number
   appeal: number
   total: number
+  blueprint?: CreatureBlueprint
   img: string
   createdAt: string
 }

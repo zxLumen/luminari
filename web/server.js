@@ -343,6 +343,7 @@ route('GET', /^\/api\/creatures\/leaderboard$/, async (ctx) => {
       craft: c.craft,
       appeal: c.appeal,
       total: c.total,
+      blueprint: c.blueprint,
       img: `/creatures-png/${pngName(c.id)}`,
       createdAt: c.createdAt,
     })),

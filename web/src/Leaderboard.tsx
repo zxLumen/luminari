@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, type RankRow } from './api.js'
+import { RigCreature } from './renderers/RigCreature.js'
+import { normalizeBlueprint, compileBlueprint, type CreatureBlueprint } from '../lib/creature/index.js'
 
 /**
  * 排行榜:全站参与排行的生灵按分降序 Top100。
@@ -37,7 +39,7 @@ export function Leaderboard() {
             <li key={r.id} className={`lb-row${r.rank <= 3 ? ' is-top' : ''}`}>
               <span className="lb-rank">{r.rank}</span>
               <button className="lb-thumb" onClick={() => setPreview(r)} title="看大图">
-                <img src={r.img} alt={r.name} />
+                <LiveCreature blueprint={r.blueprint} box={64} fallbackSrc={r.img} alt={r.name} />
               </button>
               <div className="lb-main">
                 <div className="lb-name">{r.name || '无名'}</div>
@@ -75,7 +77,13 @@ function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
         <button className="lb-modal-close" onClick={onClose} title="关闭 (Esc)">
           ✕
         </button>
-        <img className="lb-modal-img" src={row.img} alt={row.name} />
+        <LiveCreature
+          className="lb-modal-img"
+          blueprint={row.blueprint}
+          box={300}
+          fallbackSrc={row.img}
+          alt={row.name}
+        />
         <div className="lb-modal-side">
           <div className="lb-modal-rank">#{row.rank}</div>
           <h2 className="lb-modal-name">{row.name || '无名'}</h2>
@@ -91,5 +99,38 @@ function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
         </div>
       </div>
     </div>
+  )
+}
+
+/** 有蓝图就渲染活体 RigCreature(固定成熟形态、动作照常),否则回退静态 PNG */
+function LiveCreature({
+  blueprint,
+  box,
+  fallbackSrc,
+  alt,
+  className,
+}: {
+  blueprint?: CreatureBlueprint
+  box: number
+  fallbackSrc: string
+  alt: string
+  className?: string
+}) {
+  const cc = useMemo(() => {
+    if (!blueprint) return null
+    const norm = normalizeBlueprint(blueprint)
+    if (!norm) return null
+    try {
+      return { ...compileBlueprint(norm), matureDay: norm.matureDay }
+    } catch {
+      return null
+    }
+  }, [blueprint])
+
+  if (!cc) return <img className={className} src={fallbackSrc} alt={alt} />
+  return (
+    <span className={className ? `live-wrap ${className}` : 'live-wrap'}>
+      <RigCreature dna={cc.dna} rig={cc.rig} box={box} fixedDay={cc.matureDay} matureDay={cc.matureDay} />
+    </span>
   )
 }

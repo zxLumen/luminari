@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef } from 'react'
+import { useCallback, useId, useMemo, useRef } from 'react'
 import type { CreatureDna, FormState } from '../../lib/creature/index.js'
-import { formOfDay, mix, useCreatureLoop } from './shared'
+import { mix, useCreatureLoop } from './shared'
 import {
   IDENTITY,
   matStr,
@@ -165,12 +165,8 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34 }: R
     [box, rig, items, childrenOf, roots, matureDay],
   )
 
-  useCreatureLoop(dna, draw, fixedDay === undefined)
-
-  useEffect(() => {
-    if (fixedDay === undefined) return
-    draw(formOfDay(dna, fixedDay), 1.35, fixedDay)
-  }, [draw, dna, fixedDay])
+  // 固定天数时也保持动画(fixedDay 只锁「形态/大小」,动作照常播放)
+  useCreatureLoop(dna, draw, true, fixedDay)
 
   const glowId = `rigglow${rawId}`
   const shadowId = `rigsh${rawId}`

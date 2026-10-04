@@ -17,7 +17,7 @@
   全部生灵点选加入/移出参排。
 - **排行榜**:全站参与排行的生灵按分降序 Top100(名次 / 缩略图 / 名字 / 作者 / 分数 /
   提示词),点缩略图看大图预览。
-- **四周生灵层**:Top5 + 我的 selected 生灵沿视口四周游走(活体 `RigCreature` 动画),头顶冒「想说的话」(LLM 生成,带记忆)。
+- **四周生灵层**:Top5 + 我的 selected 生灵沿视口四周游走(活体 `RigCreature` 动画),头顶冒「想说的话」(LLM 生成,带记忆)。另提供 `embed.html`(透明、仅此层)供 zxLumen-Blog 以全屏 `pointer-events:none` iframe 嵌到主站(见 `src/embed-entry.tsx`)。
 
 ## 技术栈
 

@@ -38,5 +38,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      // render.html 是离屏批量出图入口(见该文件注释),与主应用一起打包
+      input: { main: 'index.html', render: 'render.html' },
+    },
   },
 })

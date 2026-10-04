@@ -18,11 +18,12 @@ import {
   replaceCreature,
   renameCreature,
   setSelected,
+  setSelectedMany,
   removeCreature,
   createCountToday,
   bumpCreateCount,
 } from './lib/creature-store.js'
-import { computeRank, readRank, writeRank, RANK_TTL_MS, listMine } from './lib/rank.js'
+import { computeRank, readRank, writeRank, RANK_TTL_MS, listMine, leaderboard } from './lib/rank.js'
 import {
   SCORE_VERSION,
   scoreBlueprint,
@@ -226,7 +227,7 @@ route('POST', /^\/api\/creature\/commit$/, async (ctx) => {
     row = replaceCreature(state, replaceId, base)
     if (!row) throw new HttpError(404, '要覆盖的生灵不存在或不属于你')
   } else {
-    row = addCreature(state, base)
+    row = addCreature(state, base, ctx.scope.isOwner ? Infinity : MAX_CREATURES_PER_CID)
   }
   await saveState(DATA_DIR, scopeKey, state)
   await fsp.mkdir(PNG_DIR, { recursive: true })
@@ -254,6 +255,19 @@ route('PATCH', /^\/api\/creature\/([^/]+)$/, async (ctx) => {
   await saveState(DATA_DIR, ctx.scope.scopeKey, state)
   await invalidateRank(DATA_DIR)
   return { creature: publicCreature(row) }
+})
+
+/* ---- 批量设置参与排行(站长整批选 Top5 用) ---- */
+
+route('POST', /^\/api\/creature\/selected$/, async (ctx) => {
+  const body = await readBody(ctx.req)
+  const ids = Array.isArray(body.ids) ? body.ids.map(String) : null
+  if (!ids) throw new HttpError(400, '缺少 ids 数组')
+  const state = await loadState(DATA_DIR, ctx.scope.scopeKey)
+  const hit = setSelectedMany(state, ids)
+  await saveState(DATA_DIR, ctx.scope.scopeKey, state)
+  await invalidateRank(DATA_DIR)
+  return { selected: hit }
 })
 
 route('DELETE', /^\/api\/creature\/([^/]+)$/, async (ctx) => {
@@ -300,6 +314,29 @@ route('GET', /^\/api\/creatures\/field$/, async (ctx) => {
     }
   }
   return { items: visible }
+})
+
+/* ---- 排行榜(公开,Top100) ---- */
+
+route('GET', /^\/api\/creatures\/leaderboard$/, async (ctx) => {
+  const n = Math.max(1, Math.min(100, Number(ctx.url.searchParams.get('n')) || 100))
+  const rows = await leaderboard(DATA_DIR, SCORE_VERSION, n)
+  return {
+    scoreVersion: SCORE_VERSION,
+    count: rows.length,
+    items: rows.map((c) => ({
+      rank: c.rank,
+      id: c.id,
+      name: c.name,
+      author: c.author,
+      descr: c.descr,
+      craft: c.craft,
+      appeal: c.appeal,
+      total: c.total,
+      img: `/creatures-png/${pngName(c.id)}`,
+      createdAt: c.createdAt,
+    })),
+  }
 })
 
 /** 触发一轮对话(榜缓存过期时;站长可手动 fresh) */

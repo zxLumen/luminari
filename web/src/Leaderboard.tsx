@@ -1,0 +1,95 @@
+import { useEffect, useState } from 'react'
+import { api, type RankRow } from './api.js'
+
+/**
+ * 排行榜:全站参与排行的生灵按分降序 Top100。
+ * 每行:缩略图 + 名次 + 名字 + 作者 + 分数 + 提示词;点缩略图看大图预览。
+ */
+export function Leaderboard() {
+  const [rows, setRows] = useState<RankRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  const [preview, setPreview] = useState<RankRow | null>(null)
+
+  useEffect(() => {
+    api
+      .leaderboard(100)
+      .then((r) => setRows(r.items))
+      .catch((e) => setErr(e instanceof Error ? e.message : '加载失败'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <div className="lb">
+      <header className="lb-head">
+        <h1>排行榜 · Top {rows.length || 100}</h1>
+        <p className="lb-lead">全站参与排行的生灵,按分降序。点缩略图看大图与提示词。</p>
+      </header>
+
+      {err && <p className="lb-err">{err}</p>}
+      {loading ? (
+        <p className="lb-hint">加载中…</p>
+      ) : rows.length === 0 ? (
+        <p className="lb-hint">还没有生灵上榜。</p>
+      ) : (
+        <ol className="lb-list">
+          {rows.map((r) => (
+            <li key={r.id} className={`lb-row${r.rank <= 3 ? ' is-top' : ''}`}>
+              <span className="lb-rank">{r.rank}</span>
+              <button className="lb-thumb" onClick={() => setPreview(r)} title="看大图">
+                <img src={r.img} alt={r.name} />
+              </button>
+              <div className="lb-main">
+                <div className="lb-name">{r.name || '无名'}</div>
+                <div className="lb-author">{r.author}</div>
+                <div className="lb-descr" title={r.descr}>
+                  {r.descr}
+                </div>
+              </div>
+              <div className="lb-score">
+                <span className="lb-total">{r.total.toFixed(1)}</span>
+                <span className="lb-sub">
+                  craft {r.craft.toFixed(0)} · appeal {r.appeal.toFixed(0)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {preview && <PreviewModal row={preview} onClose={() => setPreview(null)} />}
+    </div>
+  )
+}
+
+function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="lb-modal" onClick={onClose}>
+      <div className="lb-modal-box" onClick={(e) => e.stopPropagation()}>
+        <button className="lb-modal-close" onClick={onClose} title="关闭 (Esc)">
+          ✕
+        </button>
+        <img className="lb-modal-img" src={row.img} alt={row.name} />
+        <div className="lb-modal-side">
+          <div className="lb-modal-rank">#{row.rank}</div>
+          <h2 className="lb-modal-name">{row.name || '无名'}</h2>
+          <div className="lb-modal-author">作者:{row.author}</div>
+          <div className="lb-modal-scores">
+            <span className="lb-total">{row.total.toFixed(1)}</span>
+            <span className="lb-sub">
+              craft {row.craft.toFixed(0)} · appeal {row.appeal.toFixed(0)}
+            </span>
+          </div>
+          <div className="lb-modal-descr-label">提示词</div>
+          <p className="lb-modal-descr">{row.descr}</p>
+        </div>
+      </div>
+    </div>
+  )
+}

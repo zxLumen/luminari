@@ -88,14 +88,8 @@ function normalizePos(p) {
 function normalizeState(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
   const items = Array.isArray(r.items) ? r.items.map(normalizeOne).filter(Boolean) : []
-  // 保证 selected 单选:至多保留第一只 selected
-  let seen = false
-  for (const it of items) {
-    if (it.selected) {
-      if (seen) it.selected = false
-      else seen = true
-    }
-  }
+  // 注意:这里**不**强制 selected 单选 —— 访客「每人 1 只上榜」由接口层(单选 PATCH)保证,
+  // 而站长要能一次选 Top5 多只上榜。卡的层不对会把站长的 Top5 压成 1 只。
   return {
     v: 1,
     items,
@@ -116,10 +110,10 @@ export async function saveState(dataDir, scopeKey, state) {
 
 export const findById = (state, id) => state.items.find((i) => i.id === id) || null
 
-/** 新增一只,返回新行。超出上限或 id 冲突时抛错(调用方先查 countByScope)。 */
-export function addCreature(state, input) {
-  if (state.items.length >= MAX_CREATURES_PER_CID) {
-    const e = new Error(`你已经有 ${MAX_CREATURES_PER_CID} 只了,再创建需要选择覆盖一只`)
+/** 新增一只,返回新行。超出上限抛错(LIMIT)。`limit` 可覆盖(站长传 Infinity 免上限)。 */
+export function addCreature(state, input, limit = MAX_CREATURES_PER_CID) {
+  if (state.items.length >= limit) {
+    const e = new Error(`你已经有 ${limit} 只了,再创建需要选择覆盖一只`)
     e.code = 'LIMIT'
     throw e
   }
@@ -169,6 +163,22 @@ export function setSelected(state, id, on) {
   if (on) for (const it of state.items) it.selected = it.id === id
   else row.selected = false
   return row
+}
+
+/**
+ * 批量设置参与排行的集合(`ids` 里的全部 selected=true,其余 false)。
+ * 站长一次选 Top5 用:逐只走单选的 PATCH 会互相清除(每次 true 都清掉别人),
+ * 必须一次算完。返回命中的行数。
+ */
+export function setSelectedMany(state, ids) {
+  const want = new Set(ids)
+  let hit = 0
+  for (const it of state.items) {
+    const on = want.has(it.id)
+    if (on) hit++
+    it.selected = on
+  }
+  return hit
 }
 
 export function removeCreature(state, id) {

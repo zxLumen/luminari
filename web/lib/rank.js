@@ -67,4 +67,29 @@ export async function computeRank(dataDir, scoreVersion, pool = 30) {
   return eligible.slice(0, pool)
 }
 
+/**
+ * 全站排行榜(Top100):所有参与排行(selected)的生灵,按分降序。
+ *
+ * 与 `/api/creatures/top`(Top5 + VLM 精排 + 缓存)不同 —— 排行榜要的是**完整且稳定**的
+ * 全量名次,所以不走精排(精排只值 Top 边界那几只),直接按确定性分排序,每次读实时算。
+ * 规模小(每访客 1 只),无需缓存。
+ *
+ * 作者名:owner → 站长;访客 → 匿名短 id(`访客 · a1b2c3`)。luminari 不做访客昵称。
+ */
+export async function leaderboard(dataDir, scoreVersion, limit = 100) {
+  const all = await collectSelected(dataDir)
+  return all
+    .filter((c) => c.scoreVersion === scoreVersion)
+    .sort((a, b) => b.total - a.total || a.scopeKey.localeCompare(b.scopeKey))
+    .slice(0, limit)
+    .map((c, i) => ({ rank: i + 1, author: authorLabel(c.scopeKey), ...c }))
+}
+
+/** 数据域键 → 展示作者名 */
+export function authorLabel(scopeKey) {
+  if (scopeKey === 'owner') return 'Admin'
+  const short = String(scopeKey).slice(0, 6)
+  return `访客 · ${short}`
+}
+
 export { MAX_CREATURES_PER_CID }

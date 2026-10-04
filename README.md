@@ -14,6 +14,8 @@
 - **排行**:访客从自己 5 只里选 1 只参与排行;榜单按分排序,缓存过期时用视觉模型对 Top 边界
   做相邻成对精排(Davidson BT,失败自动退回纯分排序)。
 - **面板**:底部 5 栏位 + 中央大预览 + 拖动滑杆看「每天的样子」+ 改名 + 选择参与排行。
+- **排行榜**:全站参与排行的生灵按分降序 Top100(名次 / 缩略图 / 名字 / 作者 / 分数 /
+  提示词),点缩略图看大图预览。
 - **四周生灵层**:Top5 + 我的 selected 生灵沿视口四周游走,头顶冒「想说的话」(LLM 生成,带记忆)。
 
 ## 技术栈
@@ -51,6 +53,17 @@ npm run dev            # API(8790)+ Vite(5174,代理 /api 到 8790)
 (或设环境变量 `LUMINARI_OWNER_TOKEN`)。在「设置」里配模型 provider / Key。
 
 > Node ≥ 22(用到 `--env-file-if-exists`)。
+
+### 批量生成 Admin 生灵(离线脚本)
+
+```bash
+cd web
+npm run build && node server.js &        # 先起服务(需已配好 Key)
+node scripts/seed-admin.mjs 30           # 生成 30 只,选 Top5 上榜,导出 data/top1.json
+```
+
+脚本用本机 **Chrome(CDP)** 打开 `render.html` 把每只渲染成 PNG(与前端同一个渲染器)。
+站长(`owner`)不受「每人 5 只」上限约束。
 
 ## 环境变量
 

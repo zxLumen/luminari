@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Luminari Render</title>
+  </head>
+  <body>
+    <!-- 仅用于离线批量出图(如为首批 Admin 生灵生成缩略图):
+         读取 ?bp=<base64(JSON blueprint)>,用真实渲染器出 PNG,挂到 window.__LUM_PNG。
+         不面向访客,正常应用入口是 index.html。 -->
+    <div id="root"></div>
+    <script type="module" src="/src/render-entry.tsx"></script>
+  </body>
+</html>

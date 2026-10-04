@@ -61,6 +61,21 @@ export const api = {
   remove: (id: string) => fetch(`/api/creature/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(j),
   field: () => fetch('/api/creatures/field').then(j) as Promise<{ items: FieldCreature[] }>,
   top: (n = 5) => fetch(`/api/creatures/top?n=${n}`).then(j) as Promise<{ items: FieldCreature[] }>,
+  leaderboard: (n = 100) =>
+    fetch(`/api/creatures/leaderboard?n=${n}`).then(j) as Promise<{ count: number; items: RankRow[] }>,
+}
+
+export interface RankRow {
+  rank: number
+  id: string
+  name: string
+  author: string
+  descr: string
+  craft: number
+  appeal: number
+  total: number
+  img: string
+  createdAt: string
 }
 
 export interface FieldCreature {

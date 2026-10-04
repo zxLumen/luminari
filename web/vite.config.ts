@@ -39,8 +39,8 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      // render.html 是离屏批量出图入口(见该文件注释),与主应用一起打包
-      input: { main: 'index.html', render: 'render.html' },
+      // render.html 离屏出图入口;embed.html 供主站透明 iframe 嵌入四周层
+      input: { main: 'index.html', render: 'render.html', embed: 'embed.html' },
     },
   },
 })

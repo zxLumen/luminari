@@ -126,6 +126,16 @@ body {
   height: 100%;
   object-fit: contain;
 }
+.lb-thumb .live-wrap {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lb-thumb .live-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .lb-main {
   flex: 1;
   min-width: 0;
@@ -203,6 +213,15 @@ body {
   border-radius: 12px;
   background: #f2f0f5;
   flex-shrink: 0;
+}
+.lb-modal-img.live-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lb-modal-img svg {
+  width: 100%;
+  height: 100%;
 }
 .lb-modal-side {
   flex: 1;

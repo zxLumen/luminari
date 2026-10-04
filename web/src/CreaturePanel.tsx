@@ -24,7 +24,6 @@ export function CreaturePanel() {
   const [err, setErr] = useState('')
   const [descr, setDescr] = useState('')
   const [creating, setCreating] = useState(false)
-  const [pinned, setPinned] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -65,7 +64,6 @@ export function CreaturePanel() {
 
   useEffect(() => {
     if (compiled) setDay(compiled.matureDay)
-    setPinned(false)
   }, [compiled])
 
   /* ---- 改名 ---- */
@@ -169,7 +167,7 @@ export function CreaturePanel() {
                 dna={compiled.cc.dna}
                 rig={compiled.cc.rig}
                 box={320}
-                fixedDay={pinned ? day : undefined}
+                fixedDay={day}
                 matureDay={compiled.matureDay}
               />
             </div>
@@ -205,11 +203,7 @@ export function CreaturePanel() {
             min={0}
             max={compiled.matureDay}
             value={day}
-            onChange={(e) => {
-              setDay(Number(e.target.value))
-              setPinned(true)
-            }}
-            onPointerDown={() => setPinned(true)}
+            onChange={(e) => setDay(Number(e.target.value))}
           />
           <span className="cp-day">
             第 {day} 天 · {STAGE_LABELS[Math.min(STAGE_LABELS.length - 1, Math.floor((day / compiled.matureDay) * STAGE_LABELS.length))] ?? ''}
@@ -239,7 +233,11 @@ export function CreaturePanel() {
                 空
               </div>
             ))
-          : slots.length < max && <div className="cp-slot cp-slot-ph">+</div>}
+          : Array.from({ length: Math.max(0, max - slots.length) }, (_, i) => (
+              <div key={`ph${i}`} className="cp-slot cp-slot-ph">
+                +
+              </div>
+            ))}
       </section>
 
       {/* owner:全部生灵,点一下加入/移出参排(手动精选 Top5) */}

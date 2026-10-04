@@ -8,7 +8,8 @@
  *  4. 按分排序,把 Top5 标为 `selected`(Admin 不受 5 只上限约束 —— 服务端已对 owner 豁免)。
  *
  * 用法(在 web/ 下,先构建前端 + 起 server):
- *   node scripts/seed-admin.mjs [N] [baseUrl]
+ *   node scripts/seed-admin.mjs [N] [baseUrl] [--select]
+ * 默认**不**自动选 Top5(留给站长在面板里手动精选);加 --select 才自动按分选前 5。
  * 需要 owner 登录,脚本自动用 data/owner.token 换取 cookie。
  */
 
@@ -19,8 +20,10 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB = path.resolve(__dirname, '..')
-const N = Number(process.argv[2] || 30)
-const BASE = process.argv[3] || 'http://127.0.0.1:8790'
+const ARGS = process.argv.slice(2)
+const N = Number(ARGS.find((a) => /^\d+$/.test(a)) || 30)
+const BASE = ARGS.find((a) => /^https?:\/\//.test(a)) || 'http://127.0.0.1:8790'
+const AUTO_SELECT = ARGS.includes('--select')
 
 const DATA_DIR = process.env.LUMINARI_DATA_DIR || path.join(WEB, 'data')
 const ownerToken = fs.readFileSync(path.join(DATA_DIR, 'owner.token'), 'utf8').trim()
@@ -151,14 +154,43 @@ async function api(pathname, init) {
   return body
 }
 
-// 随机描述:GENERATE 的原型池由服务端 randomBatch 提供;这里自造一批多样描述
-const SUBJ = ['龙', '水母', '狐狸', '机械猫', '蝴蝶', '深海鱼', '鹿', '猫头鹰', '水獭', '独角兽', '蜘蛛', '鲸', '蜂鸟', '蜥蜴', '企鹅']
-const MOD = ['赛博霓虹的', '深海的', '森林的', '火焰的', '冰霜的', '幽光的', '古老的', '星尘的', '机械的', '空灵的']
-const QUIRK = ['会发光的翅膀', '半透明的身体', '金属质感的鳞片', '飘动的尾巴', '多对眼睛', '缠绕的触须', '环形光环', '水晶般的角']
+// 精选描述:丰富、具体(栖境 + 颜色 + 显著特征 + 性格),覆盖 8 类原型。
+// 词面尽量含评分引擎收录的原型 / 特质 / 颜色词,造型与分数都更稳。
+const DESCRIPTIONS = [
+  '一只赛博朋克风格的机械蝴蝶,翅脉里流淌着蓝色霓虹,翅纹像全息电路',
+  '深海中一只半透明的幽光蝴蝶,翅膀像数据流一样闪烁,空灵缥缈',
+  '远古森林里的金绿色彩蝶,翅上覆满花粉,轻盈优雅',
+  '烈阳下的火红凤蝶,翅缘如燃烧的熔岩,凶猛而耀眼',
+  '深海中发光的巨型水母,触手像数据流一样飘动,幽蓝空灵',
+  '冰霜之下的银白鲸鱼,背脊泛着极光,古老而温柔',
+  '霓虹浅滩里一条半透明的蓝紫游鱼,鳞片折射七彩,灵动可爱',
+  '远古深海的机械章鱼,金属触腕镶嵌橙色指示灯,赛博神秘',
+  '远古森林里一只长着金属鳞片的翠绿幼龙,古老而威严',
+  '火山口盘踞的火红飞龙,鳞甲如熔岩流淌,凶猛狂暴',
+  '星尘中悬浮的空灵古龙,半透明身躯缠绕荧光藤蔓,缥缈神圣',
+  '齿轮与钢铁拼成的银灰蛟龙,关节喷射蓝色电光,赛博未来',
+  '一团会呼吸的幽蓝光球,表面刻着古老纹路,空灵虚渺',
+  '星核般悬浮的金色灵体,周身环绕光环,圣洁而缥缈',
+  '深海中的荧光泡泡群,像水母又像数据流,梦幻发光',
+  '一缕赛博幽灵,全息代码凝成的紫色光团,半透明闪烁',
+  '钢铁浇铸的甲虫机器人,六条腿闪着橙色指示灯,机械精密',
+  '远古琥珀里爬出的金色甲虫,甲壳刻满古纹,沧桑古老',
+  '森林中一只发光的翠绿萤火虫,尾灯忽明忽暗,小巧可爱',
+  '蓝紫色的机械蜻蜓,四翼如全息玻璃,赛博又空灵',
+  '通体翠绿的翡翠翠鸟,羽毛像宝石,精巧温柔',
+  '火焰中重生的金红凤凰,翎羽燃烧,凶猛而神圣',
+  '银白的机械猫头鹰,眼睛是蓝色摄像头,古老又科幻',
+  '星尘里的空灵白鹤,长颈缠绕荧光,缥缈优雅',
+  '森林里一株会走路的金绿蘑菇,伞盖发光,圆润可爱',
+  '深海藤蔓缠绕的幽蓝花妖,花蕊像心脏搏动,神秘空灵',
+  '远古巨树的活藤,叶脉流动翡翠荧光,古老而坚韧',
+  '冰霜中绽放的银白水晶花,花瓣半透明,圣洁空灵',
+  '赛博霓虹的机械狐狸,金属皮毛下流淌蓝色电流,灵动未来',
+  '圆滚滚的机械水獭,关节齿轮外露,呆萌可爱',
+]
 
 function descrAt(i) {
-  const r = (n) => (i * 2654435761 + n * 40503) % 1000003
-  return `一只${MOD[r(1) % MOD.length]}${SUBJ[r(2) % SUBJ.length]},${QUIRK[r(3) % QUIRK.length]},${r(4) % 2 ? '优雅' : '神秘'}`
+  return DESCRIPTIONS[i % DESCRIPTIONS.length]
 }
 
 // ---------------------------------------------------------------- main
@@ -195,21 +227,26 @@ async function main() {
       console.log(`#${c.creature.id} total=${c.creature.total.toFixed(1)} name=${c.name}`)
     }
 
-    // 选 Top5(一次批量设置,避免逐只 PATCH 的单选互斥互相清除)
     const sorted = [...born].sort((a, b) => b.total - a.total)
-    const top5 = sorted.slice(0, 5)
-    console.log('\n[seed] Top5:', top5.map((c) => `${c.id}(${c.total.toFixed(1)})`).join(' '))
-    await api('/api/creature/selected', {
-      method: 'POST',
-      headers: { Cookie: cookie },
-      body: JSON.stringify({ ids: top5.map((c) => c.id) }),
-    })
 
-    // 导出 Top1 供后续用作应用图标
-    const top1 = top5[0]
+    // 默认不自动选 Top5(站长在面板里手动精选);--select 才按分自动选。
+    if (AUTO_SELECT) {
+      const top5 = sorted.slice(0, 5)
+      console.log('\n[seed] 自动选 Top5:', top5.map((c) => `${c.id}(${c.total.toFixed(1)})`).join(' '))
+      await api('/api/creature/selected', {
+        method: 'POST',
+        headers: { Cookie: cookie },
+        body: JSON.stringify({ ids: top5.map((c) => c.id) }),
+      })
+    } else {
+      console.log('\n[seed] 未自动选参排;请在面板「全部生灵」手动精选 Top5。')
+    }
+
+    // 导出分数最高的一只,供后续用作应用图标兜底
+    const top1 = sorted[0]
     fs.writeFileSync(path.join(DATA_DIR, 'top1.json'), JSON.stringify(top1, null, 2))
-    console.log(`\n[seed] 完成,共 ${born.length} 只;Top1 = ${top1.id} (${top1.name})`)
-    console.log(`[seed] Top1 图:${BASE}/creatures-png/${top1.id}.png`)
+    console.log(`\n[seed] 完成,共 ${born.length} 只;最高分 = ${top1.id} (${top1.name} ${top1.total.toFixed(1)})`)
+    console.log(`[seed] 图:${BASE}/creatures-png/${top1.id}.png`)
   } finally {
     renderer.close()
     chrome.kill()

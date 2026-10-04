@@ -95,4 +95,5 @@ export interface FieldCreature {
   say: string
   pos: { x: number; y: number } | null
   mine?: boolean
+  blueprint?: CreatureBlueprint
 }

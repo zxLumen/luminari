@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type FieldCreature } from './api.js'
+import { RigCreature } from './renderers/RigCreature.js'
+import { normalizeBlueprint, compileBlueprint } from '../lib/creature/index.js'
 
 /**
  * 生灵层:Top5 + 我的 selected 生灵,沿视口四周游走,头顶冒「想说的话」。
@@ -27,6 +29,7 @@ export function CreatureField({ refreshMs = 5 * 60 * 1000 }: { refreshMs?: numbe
   const [narrow, setNarrow] = useState(true)
   const [hover, setHover] = useState<string | null>(null)
   const floats = useRef<Map<string, Float>>(new Map())
+  const [, force] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return
@@ -71,10 +74,11 @@ export function CreatureField({ refreshMs = 5 * 60 * 1000 }: { refreshMs?: numbe
     }
     // 清理已消失的
     for (const key of [...map.keys()]) if (!items.some((i) => i.id === key)) map.delete(key)
+    // 新位置已写入 floats,但 effect 在渲染后运行;主动重渲染一次让生灵立即出现
+    force((n) => n + 1)
   }, [items])
 
   // 平滑移动 + 周期显示气泡
-  const [, force] = useState(0)
   useEffect(() => {
     let raf = 0
     const tick = () => {
@@ -114,6 +118,21 @@ export function CreatureField({ refreshMs = 5 * 60 * 1000 }: { refreshMs?: numbe
     return () => timers.forEach(clearInterval)
   }, [items])
 
+  const live = useMemo(() => {
+    const m = new Map<string, { cc: ReturnType<typeof compileBlueprint>; matureDay: number }>()
+    for (const it of items) {
+      if (!it.blueprint) continue
+      const norm = normalizeBlueprint(it.blueprint)
+      if (!norm) continue
+      try {
+        m.set(it.id, { cc: compileBlueprint(norm), matureDay: norm.matureDay })
+      } catch {
+        /* 坏蓝图退回静态 PNG */
+      }
+    }
+    return m
+  }, [items])
+
   const visible = useMemo(() => items, [items])
   if (narrow || !visible.length) return null
 
@@ -132,7 +151,18 @@ export function CreatureField({ refreshMs = 5 * 60 * 1000 }: { refreshMs?: numbe
             onMouseLeave={() => setHover((h) => (h === it.id ? null : h))}
           >
             {open && it.say && <div className="cf-bubble">{it.say}</div>}
-            <img className="cf-img" src={it.img} alt={it.name} draggable={false} />
+            {live.has(it.id) ? (
+              <div className="cf-live">
+                <RigCreature
+                  dna={live.get(it.id)!.cc.dna}
+                  rig={live.get(it.id)!.cc.rig}
+                  box={96}
+                  matureDay={live.get(it.id)!.matureDay}
+                />
+              </div>
+            ) : (
+              <img className="cf-img" src={it.img} alt={it.name} draggable={false} />
+            )}
             <div className="cf-name">
               {it.name || '无名'}
               {typeof it.total === 'number' && <span className="cf-score">{it.total.toFixed(0)}</span>}

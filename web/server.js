@@ -425,6 +425,7 @@ async function recomputeRank(dataDir) {
       total: c.total,
       craft: c.craft,
       appeal: c.appeal,
+      blueprint: c.blueprint,
       img: `/creatures-png/${pngName(c.id)}`,
       say: says[c.id]?.text || '',
       pos: says[c.id]?.pos || null,

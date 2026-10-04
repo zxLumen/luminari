@@ -548,6 +548,19 @@ body {
 .cf-item.is-mine .cf-img {
   filter: drop-shadow(0 0 10px var(--accent));
 }
+.cf-live {
+  width: 96px;
+  height: 96px;
+}
+.cf-live svg {
+  width: 96px;
+  height: 96px;
+  display: block;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+}
+.cf-item.is-mine .cf-live svg {
+  filter: drop-shadow(0 0 10px var(--accent));
+}
 .cf-name {
   margin-top: 2px;
   font-size: 11px;

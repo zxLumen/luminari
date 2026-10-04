@@ -16,6 +16,7 @@ const RATINGS = ['棒', '还行', '差'] as const
 export function CreaturePanel() {
   const [items, setItems] = useState<MyCreature[]>([])
   const [max, setMax] = useState(5)
+  const [isOwner, setIsOwner] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [day, setDay] = useState(30)
@@ -23,12 +24,14 @@ export function CreaturePanel() {
   const [err, setErr] = useState('')
   const [descr, setDescr] = useState('')
   const [creating, setCreating] = useState(false)
+  const [scrubbing, setScrubbing] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const r = await api.mine()
       setItems(r.items)
       setMax(r.max)
+      setIsOwner(r.isOwner)
       setActiveId((cur) => (cur && r.items.some((i) => i.id === cur) ? cur : r.items[0]?.id ?? null))
     } catch (e) {
       setErr(e instanceof Error ? e.message : '加载失败')
@@ -42,6 +45,12 @@ export function CreaturePanel() {
   }, [load])
 
   const active = useMemo(() => items.find((i) => i.id === activeId) ?? null, [items, activeId])
+
+  /** 栏位展示:owner 只看选中的(参排);普通访客看自己的全部(≤5) */
+  const slots = useMemo(
+    () => (isOwner ? items.filter((i) => i.selected) : items),
+    [items, isOwner],
+  )
 
   const compiled = useMemo(() => {
     if (!active?.blueprint) return null
@@ -68,13 +77,23 @@ export function CreaturePanel() {
     }
   }
 
-  /* ---- 选择参与排行(单选) ---- */
+  /* ---- 选择参与排行 ---- */
+  // 普通访客:单选 PATCH(每人 1 只)。owner:批量选,可同时保留多只(Top 5)。
   const select = async (id: string) => {
     try {
-      const want = !items.find((i) => i.id === id)?.selected
-      await api.patch(id, { selected: want })
-      await load()
-      setMsg(want ? '已让它参与排行' : '已取消参与排行')
+      if (isOwner) {
+        const cur = items.filter((i) => i.selected).map((i) => i.id)
+        const on = !items.find((i) => i.id === id)?.selected
+        const next = on ? [...cur, id] : cur.filter((x) => x !== id)
+        await api.selectMany(next)
+        await load()
+        setMsg(`已选 ${next.length} 只参与排行`)
+      } else {
+        const want = !items.find((i) => i.id === id)?.selected
+        await api.patch(id, { selected: want })
+        await load()
+        setMsg(want ? '已让它参与排行' : '已取消参与排行')
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : '操作失败')
     }
@@ -132,7 +151,9 @@ export function CreaturePanel() {
       <header className="cp-head">
         <h1>我的生灵</h1>
         <p className="cp-lead">
-          {items.length}/{max} 只 · 从其中选 1 只参与全站排行 · 点栏位切换 · 拖动滑杆看它每天的样子
+          {isOwner
+            ? `共 ${items.length} 只 · ${slots.length} 只参与排行 · 点栏位切换 · 拖动滑杆看它每天的样子`
+            : `${items.length}/${max} 只 · 从其中选 1 只参与全站排行 · 点栏位切换 · 拖动滑杆看它每天的样子`}
         </p>
       </header>
 
@@ -147,7 +168,7 @@ export function CreaturePanel() {
                 dna={compiled.cc.dna}
                 rig={compiled.cc.rig}
                 box={320}
-                fixedDay={day}
+                fixedDay={scrubbing ? day : undefined}
                 matureDay={compiled.matureDay}
               />
             </div>
@@ -184,6 +205,8 @@ export function CreaturePanel() {
             max={compiled.matureDay}
             value={day}
             onChange={(e) => setDay(Number(e.target.value))}
+            onPointerDown={() => setScrubbing(true)}
+            onPointerUp={() => setScrubbing(false)}
           />
           <span className="cp-day">
             第 {day} 天 · {STAGE_LABELS[Math.min(STAGE_LABELS.length - 1, Math.floor((day / compiled.matureDay) * STAGE_LABELS.length))] ?? ''}
@@ -191,9 +214,9 @@ export function CreaturePanel() {
         </div>
       )}
 
-      {/* 底部 5 栏位 */}
+      {/* 底部栏位:owner 展示参排的 5 只(或当前已选),普通访客展示自己的全部 */}
       <section className="cp-slots">
-        {items.map((it) => (
+        {slots.map((it) => (
           <button
             key={it.id}
             className={`cp-slot${it.id === activeId ? ' is-active' : ''}${it.selected ? ' is-rank' : ''}`}
@@ -207,8 +230,31 @@ export function CreaturePanel() {
             <span className="cp-slot-score">{it.total.toFixed(0)}</span>
           </button>
         ))}
-        {items.length < max && <div className="cp-slot cp-slot-ph">+</div>}
+        {!isOwner && slots.length < max && <div className="cp-slot cp-slot-ph">+</div>}
+        {isOwner && slots.length === 0 && <p className="cp-empty">还没有选中参与排行的生灵 —— 在下方「全部生灵」里挑选。</p>}
       </section>
+
+      {/* owner:全部生灵,点一下加入/移出参排(手动精选 Top5) */}
+      {isOwner && (
+        <section className="cp-others">
+          <h2 className="cp-others-h">全部生灵({items.length})· 点选加入 / 移出参排</h2>
+          <div className="cp-others-grid">
+            {items.map((it) => (
+              <button
+                key={it.id}
+                className={`cp-oth${it.selected ? ' is-on' : ''}`}
+                onClick={() => select(it.id)}
+                title={it.descr}
+              >
+                <span className="cp-oth-thumb">{it.img ? <img src={it.img} alt={it.name} /> : <span>?</span>}</span>
+                <span className="cp-oth-name">{it.name || '无名'}</span>
+                <span className="cp-oth-score">{it.total.toFixed(0)}</span>
+                <span className="cp-oth-badge">{it.selected ? '参排' : '＋'}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 创建 */}
       <section className="cp-create">

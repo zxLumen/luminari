@@ -39,7 +39,7 @@ export interface MyCreature {
 
 export const api = {
   status: () => fetch('/api/status').then(j) as Promise<{ scoreVersion: string; maxCreatures: number; dailyCreate: number }>,
-  mine: () => fetch('/api/creature/mine').then(j) as Promise<{ count: number; max: number; items: MyCreature[] }>,
+  mine: () => fetch('/api/creature/mine').then(j) as Promise<{ count: number; max: number; isOwner: boolean; selectedCount: number; items: MyCreature[] }>,
   generate: (descr: string, retryHint = '') =>
     fetch('/api/creature/generate', {
       method: 'POST',
@@ -58,6 +58,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     }).then(j) as Promise<{ creature: MyCreature }>,
+  selectMany: (ids: string[]) =>
+    fetch('/api/creature/selected', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }).then(j) as Promise<{ selected: number }>,
   remove: (id: string) => fetch(`/api/creature/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(j),
   field: () => fetch('/api/creatures/field').then(j) as Promise<{ items: FieldCreature[] }>,
   top: (n = 5) => fetch(`/api/creatures/top?n=${n}`).then(j) as Promise<{ items: FieldCreature[] }>,

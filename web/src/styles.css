@@ -435,6 +435,78 @@ body {
   cursor: default;
 }
 
+/* owner:全部生灵挑选区 */
+.cp-others {
+  margin-top: 20px;
+}
+.cp-others-h {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--dim);
+  font-weight: 500;
+}
+.cp-others-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.cp-oth {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.cp-oth.is-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.cp-oth-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f2f0f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cp-oth-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.cp-oth-name {
+  font-size: 12px;
+}
+.cp-oth-score {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+.cp-oth-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #08121c;
+  font-size: 10px;
+  font-weight: 700;
+}
+.cp-oth:not(.is-on) .cp-oth-badge {
+  background: var(--line);
+  color: var(--fg);
+}
+
 .cp-create {
   display: flex;
   gap: 10px;

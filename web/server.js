@@ -4,6 +4,9 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// 必须先于读 env 的模块(\`scope.js\` 的 DATA_DIR 是模块级常量)。见 lib/env.js。
+import './lib/env.js'
+
 import { DATA_DIR, resolveScope, cookieHeader, ownerToken, cidCookieHeader } from './lib/scope.js'
 import { loadSettings, saveSettings, saveKey, publicSettings, aiConfig } from './lib/settings.js'
 import { PROVIDERS } from './lib/providers.js'
@@ -160,7 +163,14 @@ route('POST', /^\/api\/settings\/key$/, async (ctx) => {
 
 route('GET', /^\/api\/creature\/mine$/, async (ctx) => {
   const items = await listMine(DATA_DIR, ctx.scope.scopeKey)
-  return { count: items.length, max: MAX_CREATURES_PER_CID, items: items.map(publicCreature) }
+  // owner 无 5 只上限,面板按「只展示参与排行的」呈现(见前端);max 回传 calc 后仍给 5 供普通访客用
+  return {
+    count: items.length,
+    max: MAX_CREATURES_PER_CID,
+    isOwner: ctx.scope.isOwner,
+    selectedCount: items.filter((i) => i.selected).length,
+    items: items.map(publicCreature),
+  }
 })
 
 /** 生成(不落库)—— 返回骨架,前端出图后再 commit */
@@ -563,6 +573,8 @@ function publicCreature(c) {
     pos: c.pos,
     memories: c.memories,
     createdAt: c.createdAt,
+    // 中央大预览需要骨架(活体 RigCreature 渲染);列表只用 img
+    blueprint: c.blueprint,
     img: `/creatures-png/${pngName(c.id)}`,
   }
 }

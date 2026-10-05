@@ -430,6 +430,7 @@ async function recomputeRank(dataDir) {
       img: `/creatures-png/${pngName(c.id)}`,
       say: says[c.id]?.text || '',
       pos: says[c.id]?.pos || null,
+      createdAt: c.createdAt,
     }
   }
   const payload = { ids, byId, reranked, round, says, stale: false }

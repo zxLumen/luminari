@@ -265,6 +265,17 @@ export function normalizeBlueprint(raw: unknown): CreatureBlueprint | null {
     if (p.parent && (!ids.has(p.parent) || p.parent === p.id)) p.parent = undefined
   }
 
+  // 结构部件(根、有子部件挂靠的、以及身体/头/眼/四肢这类「解剖」角色)必须第 0 天就在:
+  // 去掉它们的 appear。否则模型给身体/头也排了 appear 时,幼体就几乎空白(踩过多次)。
+  // appear 只留给「后来长出的装饰/附加部件」(accent* / glow)。
+  const parents = new Set<string>()
+  for (const p of parts) if (p.parent) parents.add(p.parent)
+  const CORE_ROLES = new Set(['body', 'bodyDark', 'bodyLight', 'eye', 'white', 'black', 'nose', 'line'])
+  for (const p of parts) {
+    if (!p.appear) continue
+    if (!p.parent || parents.has(p.id) || CORE_ROLES.has(p.role)) p.appear = undefined
+  }
+
   const cfg = (r.motionCfg ?? r.motion ?? {}) as Record<string, unknown>
   const rulesRaw = (cfg.rules ?? {}) as Record<string, unknown>
   const rules: Record<string, BpPoseRule> = {}

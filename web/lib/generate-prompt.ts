@@ -68,11 +68,30 @@ export const DIRECT_PROMPT = `你是「生物骨架建模器」。用户在描�
 从后到前建议:远侧肢体(z 5-9)→ 尾巴/翅(10-19)→ 躯干(20-29)→ 头(30-39)→ 近侧肢体(40-49)→ 眼睛/细节(50+)。
 左右对称的部件用 \`mirror: true\`,**不要手写左右两份**。
 
-# 成长(这是产品的核心卖点:每天都看得见变化)
+# 成长(产品核心卖点:每天都看得见「长出新东西」,而不是把同一只放大)
 
-- 用 \`grow\` 让主要部件在 \`matureDay\` 天内持续变大。
-- 用 \`appear\` 排一些**解锁**:斑纹、尾尖、耳尖、第二对翅等,分散在不同天数出现。
-- 至少安排 4 个不同天数的 \`appear\`,让第 3 天、第 8 天、第 15 天、第 25 天各有新东西长出来。
+**两种手段,用法完全不同:**
+- \`grow\`:只用来做**轻微尺寸变化**(建议 \`a=0.85, b=1.1\`)。**不要**用它把主体部件从很小放大 ——
+  那会让幼体变成「缩小版成体」,枯燥单调。\`grow\` 只是配角。
+- \`appear\`:**成长的主力**。部件从「无」长出来(淡入 + 放大)。这才是「长出新组件」。**尽量多用。**
+
+**目标:第 0 天就是一只完整、能认出物种的个体;之后不断「长出新的组件」,越来越丰富、越来越酷炫。**
+
+把 4 个阶段排成一条**升级线**(下面是真实天数,约 \`matureDay=30\` 天定型):
+- 第 0 天(素体):身体 / 头 / 眼 / 主色 / 主要轮廓都在 —— 朴素但**完整可辨认**。
+- 第 ~2 天(幼体):长出一批**小配件**(小角 / 须 / 小鳍 / 斑纹 / 小尖刺)。
+- 第 ~8 天(成体):长出**成对的主要部件**(第二对翅 / 尾节 / 装甲片 / 背鳍 / 发光节点)。
+- 第 ~19 天(觉醒):长出**最酷炫的**(能量环 / 光冠 / 光环 / 机械外挂 / 粒子 / 大面积发光纹)。
+
+要求:
+- **核心部件禁止 appear**:身体主干、头、眼睛、主要的一对四肢(腿/翅/鳍)或尾 —— 这些**第 0 天就必须在**
+  (用轻微 \`grow\` 或完全不写成长字段)。**只允许极少数非关键部件晚点出现**。第 0 天渲染出来必须**有肉、完整、认得出物种**,绝不能几乎空白。
+- \`appear\` **只加在「后来长出的附加部件」上**:额外的角/冠/刺、第二/第三对翅或肢、装甲片、发光节点/能量环、
+  花纹/眼斑、须/触手、机械外挂……**不要**把身体/头/眼/主肢标上 appear。
+- \`appear\` 数量**尽量多**(建议 8~16 个;**越科幻 / 越强大 / 描述越丰富就越多**)。
+- \`appear\` 的 start/end **分散铺开**在 1~matureDay 之间,**每个阶段都有新组件**,不要全挤在开头或结尾。
+- 「长什么新组件」**由你根据访客描述自行决定**(最能出彩的地方):机械 → 外挂/装甲/指示灯/能量环;
+  有机 → 角/鳍/鳞/花纹;空灵 → 光晕/飘带/粒子;猛兽 → 尖刺/獠牙/装甲。目标是**每次解锁都让人「哇」一下**。
 
 # motionCfg(运动)
 
@@ -84,24 +103,35 @@ export const DIRECT_PROMPT = `你是「生物骨架建模器」。用户在描�
 
 # 约束
 
-- 部件总数 **8~28 个**;不要超过 40。
+- 部件总数 **12~36 个**(按描述复杂度伸缩);不要超过 48。其中**大部分新增部件用 \`appear\` 分阶段出现**。
 - 每条 path 尽量简短(建议 < 300 字符),曲线用 2~4 段贝塞尔即可,不要试图画细节纹理。
 - 颜色必须是 6 位十六进制。配色要和描述一致(赛博=霓虹青粉、深海=蓝紫、火=橙红、森林=绿黄、暗=灰青)。
 - 生物要**一眼认得出**描述里的物种:先把标志性部位做对(翅膀的形状/腿的数量/耳朵/尾巴/角),
   再考虑花纹。
 - 只输出 JSON。`
 
-/** 附在用户消息末尾的少量 few-shot,压住最常见的两种错(忘坐标、部件太少) */
-export const DIRECT_EXAMPLE = `示例(一只"深海发光水母",注意翅膀式的伞盖与下垂触手,以及分散的 appear 排期):
+/** 附在用户消息末尾的 few-shot:示范「第 0 天已完整 + 之后不断长出新组件」 */
+export const DIRECT_EXAMPLE = `示例(一只"机械幼龙":第 0 天身体/头/眼/四肢/尾已经完整;之后用大量 appear 按阶段长出 角→核心→翅→翅脉→背甲→尾刺→光冠→能量环→鳍 等新组件):
 
-{"dna":{"name":"幽伞","archetype":"fish","palette":{"body":"#4fd6ff","accent":"#b06fe8","glow":"#d8f6ff"},"traits":{"mechanical":0,"organic":2,"ethereal":4,"fierce":1,"cute":1,"ancient":1,"cyber":0,"luminous":4},"motion":{"flapHz":1.8,"driftAmp":14,"bobPx":6,"trail":0.35,"spin":0.05}},"span":84,"matureDay":28,"parts":[
-{"id":"bell","d":"M -34 0 C -34 -26 34 -26 34 0 C 34 16 -34 16 -34 0 Z","role":"accent","z":20},
-{"id":"bellGlow","parent":"bell","d":"M -22 -4 C -22 -18 22 -18 22 -4 C 22 6 -22 6 -22 -4 Z","role":"glow","z":21,"appear":{"start":6,"end":14}},
-{"id":"core","parent":"bell","d":"M -8 0 a 8 10 0 1 0 16 0 a 8 10 0 1 0 -16 0 Z","role":"bodyLight","z":22},
-{"id":"tentacle","parent":"bell","d":"M 0 8 C -4 26 -2 40 3 52","role":"line","z":10,"stroke":2.4,"mirror":true,"x":-10,"y":6,"grow":{"from":0,"to":24,"a":0.5,"b":1}},
-{"id":"tentacle2","parent":"bell","d":"M 0 10 C 4 24 2 36 -2 46","role":"line","z":11,"stroke":1.8,"mirror":true,"x":8,"y":8,"appear":{"start":8,"end":18}},
-{"id":"frill","parent":"bell","d":"M 0 0 C 10 -6 22 -4 28 4 C 16 2 6 2 0 0 Z","role":"glow","z":19,"mirror":true,"x":-30,"y":2,"stroke":1.4,"appear":{"start":15,"end":24}}
-],"motionCfg":{"family":"swim","period":2.6,"amplitude":1,"rules":{"tentacle":{"amp":11,"phase":0,"periodScale":1.4},"bell":{"amp":6}}}}`
+{"dna":{"name":"铆爪","archetype":"dragon","palette":{"body":"#3a4a6b","accent":"#ff7a3c","glow":"#7ef9ff"},"traits":{"mechanical":4,"organic":1,"ethereal":1,"fierce":3,"cute":1,"ancient":2,"cyber":3,"luminous":2},"motion":{"flapHz":2,"driftAmp":14,"bobPx":5,"trail":0.25,"spin":0.1}},"span":96,"matureDay":30,"parts":[
+{"id":"body","d":"M -30 0 C -22 -16 22 -16 30 0 C 22 16 -22 16 -30 0 Z","role":"body","z":20},
+{"id":"belly","parent":"body","d":"M -18 2 C -12 12 12 12 18 2 C 8 8 -8 8 -18 2 Z","role":"bodyLight","z":21},
+{"id":"neck","parent":"body","d":"M 0 0 C 8 -4 14 -9 18 -15","role":"body","z":24,"x":26,"y":-6,"stroke":7},
+{"id":"head","parent":"neck","d":"M -8 -6 C -2 -13 10 -13 14 -6 C 16 2 8 8 -2 6 C -8 4 -10 -2 -8 -6 Z","role":"body","z":30,"x":18,"y":-15},
+{"id":"eye","parent":"head","d":"M -2.6 0 a 2.6 2.6 0 1 0 5.2 0 a 2.6 2.6 0 1 0 -5.2 0 Z","role":"eye","z":40,"x":6,"y":-3,"mirror":true},
+{"id":"legF","parent":"body","d":"M 0 0 C 2 8 2 14 -2 18","role":"line","z":42,"x":14,"y":8,"stroke":3,"mirror":true},
+{"id":"legB","parent":"body","d":"M 0 0 C 2 8 2 14 -2 18","role":"line","z":41,"x":-14,"y":8,"stroke":3,"mirror":true},
+{"id":"tail","parent":"body","d":"M 0 0 C -12 2 -22 6 -30 12","role":"body","z":18,"x":-30,"y":2,"stroke":6,"grow":{"from":0,"to":30,"a":0.9,"b":1.1}},
+{"id":"horn","parent":"head","d":"M 0 0 C -2 -8 -1 -14 3 -18","role":"accent","z":50,"x":2,"y":-10,"stroke":3,"mirror":true,"appear":{"start":2,"end":7}},
+{"id":"core","parent":"body","d":"M -4 0 a 4 4 0 1 0 8 0 a 4 4 0 1 0 -8 0 Z","role":"glow","z":27,"appear":{"start":4,"end":10}},
+{"id":"wing","parent":"body","d":"M 0 0 C -18 -22 -46 -26 -54 -8 C -40 2 -18 4 0 0 Z","role":"accent","z":12,"x":4,"y":-10,"mirror":true,"appear":{"start":6,"end":13}},
+{"id":"wingVein","parent":"wing","d":"M 0 0 C -16 -12 -34 -16 -48 -6","role":"glow","z":13,"stroke":1.4,"appear":{"start":8,"end":14}},
+{"id":"backPlate","parent":"body","d":"M 0 0 C 6 -4 14 -4 20 0 C 14 4 6 4 0 0 Z","role":"accentDark","z":26,"x":8,"y":-12,"mirror":true,"appear":{"start":10,"end":16}},
+{"id":"tailSpike","parent":"tail","d":"M 0 0 L 4 -8 L 8 0 Z","role":"accent","z":22,"x":-30,"y":12,"appear":{"start":14,"end":20}},
+{"id":"crest","parent":"head","d":"M -6 0 C -2 -10 2 -10 6 0 C 2 -4 -2 -4 -6 0 Z","role":"glow","z":48,"x":0,"y":-12,"appear":{"start":18,"end":24}},
+{"id":"energyRing","parent":"body","d":"M -40 0 a 40 22 0 1 0 80 0 a 40 22 0 1 0 -80 0 Z","role":"glow","z":5,"stroke":2,"fixed":true,"appear":{"start":19,"end":26}},
+{"id":"fin","parent":"body","d":"M 0 0 C -6 -14 -2 -24 8 -28 C 4 -16 6 -8 0 0 Z","role":"accentLight","z":14,"x":-6,"y":-8,"mirror":true,"appear":{"start":22,"end":28}}
+],"motionCfg":{"family":"flap","period":1.8,"amplitude":1,"rules":{"wing":{"amp":34},"tail":{"amp":16}}}}`
 
 /** 组装最终发给模型的 messages */
 export function buildGenerateMessages(descr: string, retryHint?: string) {

@@ -29,13 +29,19 @@ export function scoreBlueprint(norm, descr) {
   return { cc, score }
 }
 
+/** 增益式成长护栏:appear 少于这个数、或第 0 天基础部件少于这个数,就带提示重试一次 */
+const MIN_APPEAR = 6
+const MIN_BASE = 4
+
 /** 生成一只生物的骨架:调 LLM + 解析 + 校验。失败抛错。 */
 export async function generateBlueprint(aiConfig, descr, retryHint) {
   const budget = [...GENERATE_BUDGETS, 8000]
   let lastErr = '生成失败'
+  let hint = retryHint
+  let best = null
   for (const maxTokens of budget) {
     const res = await completeChat(aiConfig, {
-      messages: buildGenerateMessages(descr, retryHint),
+      messages: buildGenerateMessages(descr, hint),
       maxTokens,
       temperature: 0.8,
       noThinking: false,
@@ -46,9 +52,19 @@ export async function generateBlueprint(aiConfig, descr, retryHint) {
     }
     const raw = extractJson(res.text)
     const norm = normalizeBlueprint(raw)
-    if (norm) return norm
-    lastErr = '骨架不可用'
+    if (!norm) {
+      lastErr = '骨架不可用'
+      continue
+    }
+    // 增益式成长护栏:appear 太少、或第 0 天基础部件太少 → 带提示再试一次(保留最丰富的一份兜底)
+    const appears = norm.parts.filter((p) => p.appear).length
+    const base = norm.parts.filter((p) => !p.appear).length
+    if (appears >= MIN_APPEAR && base >= MIN_BASE) return norm
+    if (!best || norm.parts.length > best.parts.length) best = norm
+    lastErr = `成长编排不合格(appear=${appears}, base=${base})`
+    hint = `${retryHint ? retryHint + ';' : ''}上次这只:appear=${appears}(目标 8~16)、第 0 天就在的部件=${base}(要 ≥${MIN_BASE})。请让**身体/头/眼/主要肢体第 0 天就在(禁止给它们 appear,只用轻微 grow a≈0.85,b≈1.1)**,appear **只加在后来长出的附加部件上**,并分散到各阶段。`
   }
+  if (best) return best
   throw new Error(lastErr)
 }
 

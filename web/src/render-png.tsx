@@ -16,6 +16,8 @@ export async function renderToPng(
   rig: ReturnType<typeof compileBlueprint>['rig'],
   matureDay: number,
   box = RENDER_BOX,
+  day = matureDay,
+  minScale?: number,
 ): Promise<string> {
   const host = document.createElement('div')
   host.style.position = 'fixed'
@@ -25,8 +27,13 @@ export async function renderToPng(
   const root = createRoot(host)
   try {
     await new Promise<void>((res) => {
-      root.render(<RigCreature dna={dna} rig={rig} box={box} fixedDay={matureDay} matureDay={matureDay} />)
-      requestAnimationFrame(() => requestAnimationFrame(() => res()))
+      root.render(
+        <RigCreature dna={dna} rig={rig} box={box} fixedDay={day} matureDay={matureDay} minScale={minScale} />,
+      )
+      // 多等几帧 + 一个短延时:确保 React 已提交、rAF 循环至少画过一帧(否则首帧 transform 还没写上)
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(res, 40))),
+      )
     })
     const svg = host.querySelector('svg')
     if (!svg) throw new Error('未找到 SVG')

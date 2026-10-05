@@ -18,7 +18,12 @@ async function main() {
     const norm = normalizeBlueprint(json)
     if (!norm) throw new Error('骨架不可用')
     const cc = compileBlueprint(norm)
-    w.__LUM_PNG = await renderToPng(cc.dna, cc.rig, cc.matureDay)
+    const q = new URLSearchParams(location.search)
+    const dayRaw = Number(q.get('day'))
+    const day = Number.isFinite(dayRaw) && q.get('day') !== null ? dayRaw : cc.matureDay
+    const minRaw = Number(q.get('min'))
+    const minScale = Number.isFinite(minRaw) && q.get('min') !== null ? minRaw : undefined
+    w.__LUM_PNG = await renderToPng(cc.dna, cc.rig, cc.matureDay, undefined, day, minScale)
   } catch (e) {
     w.__LUM_ERR = e instanceof Error ? e.message : String(e)
   }

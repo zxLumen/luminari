@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, type MyCreature } from './api.js'
 import { RigCreature } from './renderers/RigCreature.js'
 import { renderToPng } from './render-png.js'
@@ -24,6 +24,8 @@ export function CreaturePanel() {
   const [err, setErr] = useState('')
   const [descr, setDescr] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createStage, setCreateStage] = useState(0)
+  const createStartRef = useRef(0)
 
   const load = useCallback(async () => {
     try {
@@ -115,14 +117,17 @@ export function CreaturePanel() {
     const d = descr.trim()
     if (!d) return
     setErr('')
-    setMsg('生成中…')
+    setMsg('')
+    const t0 = Date.now()
+    createStartRef.current = t0
+    setCreateStage(0)
     setCreating(true)
     try {
       const gen = await api.generate(d)
       const norm = normalizeBlueprint(gen.blueprint)
       if (!norm) throw new Error('骨架不可用')
       const cc = compileBlueprint(norm)
-      setMsg('出图中…')
+      setCreateStage(1)
       const png = await renderToPng(cc.dna, cc.rig, cc.matureDay)
       let replaceId: string | undefined
       if (items.length >= max) {
@@ -131,8 +136,9 @@ export function CreaturePanel() {
         if (!found) throw new Error('未选择要覆盖的生灵')
         replaceId = found.id
       }
-      setMsg('登记中…')
+      setCreateStage(2)
       const r = await api.commit({ descr: d, blueprint: norm, png, replaceId, birthdayDay: cc.matureDay })
+      pushCreateSample(Date.now() - t0)
       setDescr('')
       await load()
       setActiveId(r.creature.id)
@@ -278,6 +284,9 @@ export function CreaturePanel() {
           {creating ? '创建中…' : items.length >= max ? '创建并覆盖' : '创建'}
         </button>
       </section>
+
+      {/* 创建进度:阶段 + 已用 + 预计 + 进度条,让访客有感知 */}
+      {creating && <CreateProgress stage={createStage} startedAt={createStartRef.current} />}
     </div>
   )
 }
@@ -356,5 +365,81 @@ function MiniRig({ c, box = 72 }: { c: MyCreature; box?: number }) {
         minScale={0.9}
       />
     </span>
+  )
+}
+
+/* ---------------------- 创建进度(阶段 + 已用 + 预计) ---------------------- */
+
+const CREATE_STAGES = ['解读描述 · 生成骨架', '渲染它的形象', '起名 · 灵魂 · 登记']
+const CREATE_SEED_MS = 45000 // 还没有耗时样本时的初值
+const CREATE_SAMPLES_KEY = 'luminari.create.samples'
+
+function humanSec(ms: number): string {
+  if (ms < 1000) return '不到 1s'
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`
+  return `${(ms / 60000).toFixed(1)}min`
+}
+
+function readCreateSamples(): number[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(CREATE_SAMPLES_KEY) || '[]')
+    return Array.isArray(a) ? a.filter((n) => typeof n === 'number' && n > 0) : []
+  } catch {
+    return []
+  }
+}
+
+function pushCreateSample(ms: number) {
+  try {
+    const a = [...readCreateSamples(), Math.round(ms)].slice(-8)
+    localStorage.setItem(CREATE_SAMPLES_KEY, JSON.stringify(a))
+  } catch {
+    /* ignore */
+  }
+}
+
+function median(a: number[]): number {
+  if (!a.length) return 0
+  const s = [...a].sort((x, y) => x - y)
+  const m = Math.floor(s.length / 2)
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
+
+/** 创建进度:当前阶段 + 已用时长 + 预计剩余 + 进度条 */
+function CreateProgress({ stage, startedAt }: { stage: number; startedAt: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 500)
+    return () => window.clearInterval(t)
+  }, [])
+
+  const estimate = median(readCreateSamples()) || CREATE_SEED_MS
+  const elapsed = Math.max(0, now - startedAt)
+  const frac = Math.min(1, elapsed / Math.max(1, estimate))
+
+  // 各阶段在总耗时里的大致占比(骨架是大头)
+  const weights = [0.7, 0.15, 0.15]
+  const idx = Math.min(stage, CREATE_STAGES.length - 1)
+  let done = 0
+  for (let i = 0; i < idx; i++) done += weights[i]
+  const progress = Math.min(0.97, done + weights[idx] * frac)
+  const eta = Math.max(0, estimate - elapsed)
+
+  return (
+    <div className="cp-wait">
+      <div className="cp-wait-phase">
+        <b>
+          第 {idx + 1}/{CREATE_STAGES.length} 步
+        </b>
+        {CREATE_STAGES[idx]}
+      </div>
+      <div className="cp-wait-time">
+        已用 <b>{humanSec(elapsed)}</b>
+        <span className="cp-wait-eta">{eta > 0 ? ` · 预计还要约 ${humanSec(eta)}` : ' · 快好了…'}</span>
+      </div>
+      <div className="cp-wait-bar">
+        <i style={{ width: `${Math.round(progress * 100)}%` }} />
+      </div>
+    </div>
   )
 }

@@ -573,6 +573,46 @@ body {
   color: var(--fg);
   font: inherit;
 }
+.cp-wait {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.cp-wait-phase {
+  font-size: 14px;
+  color: var(--fg);
+}
+.cp-wait-phase b {
+  color: var(--accent);
+  margin-right: 6px;
+}
+.cp-wait-time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.cp-wait-time b {
+  color: var(--fg);
+}
+.cp-wait-eta {
+  color: var(--dim);
+}
+.cp-wait-bar {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.cp-wait-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
 
 /* ---------------- 四周生灵层 ---------------- */
 

@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type RankRow } from './api.js'
 import { RigCreature } from './renderers/RigCreature.js'
-import { normalizeBlueprint, compileBlueprint, type CreatureBlueprint } from '../lib/creature/index.js'
+import { normalizeBlueprint, compileBlueprint, STAGE_LABELS, type CreatureBlueprint } from '../lib/creature/index.js'
+
+/** 现实天数(从出生到现在),封顶在成熟天数 */
+function currentDayOf(createdAt: string | undefined, matureDay: number): number {
+  const t0 = createdAt ? new Date(createdAt).getTime() : Date.now()
+  const age = (Date.now() - t0) / 86400000
+  return Math.max(0, Math.min(matureDay, age))
+}
+
+/** 从蓝图取成熟天数(用于滑杆上限) */
+function matureDayOf(bp?: CreatureBlueprint): number {
+  if (!bp) return 34
+  return normalizeBlueprint(bp)?.matureDay ?? 34
+}
 
 /**
  * 排行榜:全站参与排行的生灵按分降序 Top100。
@@ -25,7 +38,7 @@ export function Leaderboard() {
     <div className="lb">
       <header className="lb-head">
         <h1>排行榜 · Top {rows.length || 100}</h1>
-        <p className="lb-lead">全站参与排行的生灵,按分降序。点缩略图看大图与提示词。</p>
+        <p className="lb-lead">全站参与排行的生灵,按分降序。缩略图是它**当前天数**的形态;点开可按天预览各阶段。</p>
       </header>
 
       {err && <p className="lb-err">{err}</p>}
@@ -38,8 +51,15 @@ export function Leaderboard() {
           {rows.map((r) => (
             <li key={r.id} className={`lb-row${r.rank <= 3 ? ' is-top' : ''}`}>
               <span className="lb-rank">{r.rank}</span>
-              <button className="lb-thumb" onClick={() => setPreview(r)} title="看大图">
-                <LiveCreature blueprint={r.blueprint} box={64} fallbackSrc={r.img} alt={r.name} />
+              <button className="lb-thumb" onClick={() => setPreview(r)} title="看大图 / 按天预览">
+                <LiveCreature
+                  blueprint={r.blueprint}
+                  box={64}
+                  day={currentDayOf(r.createdAt, matureDayOf(r.blueprint))}
+                  minScale={0.9}
+                  fallbackSrc={r.img}
+                  alt={r.name}
+                />
               </button>
               <div className="lb-main">
                 <div className="lb-name">{r.name || '无名'}</div>
@@ -65,11 +85,17 @@ export function Leaderboard() {
 }
 
 function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
+  const matureDay = matureDayOf(row.blueprint)
+  const [day, setDay] = useState(() => currentDayOf(row.createdAt, matureDay))
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  const stage =
+    STAGE_LABELS[Math.min(STAGE_LABELS.length - 1, Math.floor((day / matureDay) * STAGE_LABELS.length))] ?? ''
 
   return (
     <div className="lb-modal" onClick={onClose}>
@@ -81,6 +107,7 @@ function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
           className="lb-modal-img"
           blueprint={row.blueprint}
           box={300}
+          day={day}
           fallbackSrc={row.img}
           alt={row.name}
         />
@@ -94,6 +121,20 @@ function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
               craft {row.craft.toFixed(0)} · appeal {row.appeal.toFixed(0)}
             </span>
           </div>
+          <div className="lb-modal-timeline">
+            <input
+              type="range"
+              min={0}
+              max={matureDay}
+              step={1}
+              value={Math.round(day)}
+              onChange={(e) => setDay(Number(e.target.value))}
+              aria-label="预览天数"
+            />
+            <span className="lb-modal-day">
+              第 {Math.round(day)} 天 · {stage}
+            </span>
+          </div>
           <div className="lb-modal-descr-label">提示词</div>
           <p className="lb-modal-descr">{row.descr}</p>
         </div>
@@ -102,16 +143,20 @@ function PreviewModal({ row, onClose }: { row: RankRow; onClose: () => void }) {
   )
 }
 
-/** 有蓝图就渲染活体 RigCreature(固定成熟形态、动作照常),否则回退静态 PNG */
+/** 有蓝图就渲染活体 RigCreature(指定天数形态、动作照常),否则回退静态 PNG */
 function LiveCreature({
   blueprint,
   box,
+  day,
+  minScale,
   fallbackSrc,
   alt,
   className,
 }: {
   blueprint?: CreatureBlueprint
   box: number
+  day?: number
+  minScale?: number
   fallbackSrc: string
   alt: string
   className?: string
@@ -130,7 +175,14 @@ function LiveCreature({
   if (!cc) return <img className={className} src={fallbackSrc} alt={alt} />
   return (
     <span className={className ? `live-wrap ${className}` : 'live-wrap'}>
-      <RigCreature dna={cc.dna} rig={cc.rig} box={box} fixedDay={cc.matureDay} matureDay={cc.matureDay} />
+      <RigCreature
+        dna={cc.dna}
+        rig={cc.rig}
+        box={box}
+        fixedDay={day ?? cc.matureDay}
+        matureDay={cc.matureDay}
+        minScale={minScale}
+      />
     </span>
   )
 }

@@ -130,7 +130,7 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, min
       // 整体尺寸随天数长大(幼体 → 成年更大器);按 box 归一,strip 小图也不会溢出
       const grow = norm(day, 0, matureDay)
       const fit = (box * 0.42) / rig.span
-      const S = fit * (minScale + (1.22 - minScale) * grow)
+      const S = fit * (minScale + (1.35 - minScale) * grow)
       root.setAttribute('transform', `translate(${box / 2} ${box / 2}) scale(${S})`)
       // 觉醒辉光:随阶段越来越亮、越来越大
       const glow = glowRef.current

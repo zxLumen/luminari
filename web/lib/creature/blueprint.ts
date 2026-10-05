@@ -276,6 +276,32 @@ export function normalizeBlueprint(raw: unknown): CreatureBlueprint | null {
     if (!p.parent || parents.has(p.id) || CORE_ROLES.has(p.role)) p.appear = undefined
   }
 
+  // 引擎兜底:部件过多时自动收敛(丢多余的「叶子装饰」,保留结构件),而不是让模型重跑一遍 LLM。
+  const MAX_KEEP = 24
+  if (parts.length > MAX_KEEP) {
+    let guard = 0
+    while (parts.length > MAX_KEEP && guard++ < 300) {
+      let idx = -1
+      let bestKey = -Infinity
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i]
+        if (parents.has(p.id)) continue // 有子件挂靠 → 结构件,保留
+        const key = (p.appear ? 1000 : 0) + p.z // 先丢「后来长出的装饰」,再丢 z 大的(更靠前)
+        if (key > bestKey) {
+          bestKey = key
+          idx = i
+        }
+      }
+      if (idx < 0) break
+      parts.splice(idx, 1)
+    }
+    // 删完可能留下悬空 parent → 提升为根
+    const ids2 = new Set(parts.map((p) => p.id))
+    for (const p of parts) {
+      if (p.parent && (!ids2.has(p.parent) || p.parent === p.id)) p.parent = undefined
+    }
+  }
+
   const cfg = (r.motionCfg ?? r.motion ?? {}) as Record<string, unknown>
   const rulesRaw = (cfg.rules ?? {}) as Record<string, unknown>
   const rules: Record<string, BpPoseRule> = {}

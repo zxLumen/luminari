@@ -30,10 +30,10 @@ export function scoreBlueprint(norm, descr) {
 }
 
 /** 成长编排护栏:appear / 部件数落在区间外(太少、太碎、太杂)就带提示重试一次 */
-const MIN_APPEAR = 4
-const MAX_APPEAR = 10
+const MIN_APPEAR = 6
+const MAX_APPEAR = 14
 const MIN_BASE = 4
-const MAX_PARTS_SOFT = 22
+const MAX_PARTS_SOFT = 30
 
 /** 生成一只生物的骨架:调 LLM + 解析 + 校验。失败抛错。 */
 export async function generateBlueprint(aiConfig, descr, retryHint) {

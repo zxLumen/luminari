@@ -147,6 +147,50 @@ ${roster}
   return { says }
 }
 
+/**
+ * 生成一段生灵**彼此之间**的短对话(来回接话,不是各自独白)。
+ * `prev` 是上一轮已说过的话,塞进提示词让它别重复/改写。
+ * 返回 [{ id, text }]。
+ */
+export async function chatterRound(aiConfig, creatures, prev = []) {
+  if (!creatures.length) return { turns: [] }
+  const roster = creatures
+    .map((c) => `- id=${c.id}; 名字=${c.name || '无名'}; 性格=${c.personality || c.descr || '（无）'}`)
+    .join('\n')
+  const prevText = prev.length
+    ? `\n已说过、**不要再重复或改写**的话:\n${prev.map((t) => `- ${t}`).join('\n')}\n`
+    : ''
+  const sys = `你是这些虚拟生灵的旁白兼编剧。它们住在同一颗星球,会互相打招呼、斗嘴、怀念离开的同伴、欢迎新来的。
+写一段它们**彼此之间**的短对话(来回接话,不是各自独白),每句属于其中一只。只输出 JSON 数组,不要解释。`
+  const user = `生灵名单:
+${roster}
+${prevText}
+写一段它们此刻的对话,6~10 句,每句 ≤30 字、口语、有性格、**互相称呼对方名字**、像真的在聊天。输出:
+[{"id":"<名单里的 id>","text":"..."}]`
+  const res = await completeChat(aiConfig, {
+    messages: [
+      { role: 'system', content: sys },
+      { role: 'user', content: user },
+    ],
+    maxTokens: 1200,
+    temperature: 1.0,
+    noThinking: true,
+  })
+  const arr = extractJson(res.text)
+  const ids = new Set(creatures.map((c) => c.id))
+  const turns = []
+  if (Array.isArray(arr)) {
+    for (const item of arr) {
+      if (!item || typeof item !== 'object') continue
+      const id = String(item.id || '')
+      if (!ids.has(id)) continue
+      const text = typeof item.text === 'string' ? item.text.trim().slice(0, 60) : ''
+      if (text) turns.push({ id, text })
+    }
+  }
+  return { turns }
+}
+
 const clamp01 = (n) => Math.min(1, Math.max(0, n))
 
 export const newId = () => `c${randomUUID().replace(/-/g, '').slice(0, 12)}`

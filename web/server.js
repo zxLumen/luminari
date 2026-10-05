@@ -33,6 +33,7 @@ import {
   generateBlueprint,
   birthNameAndSoul,
   converseRound,
+  chatterRound,
 } from './lib/creature-lib.js'
 import { rerankTop } from './lib/judge.js'
 import { normalizeBlueprint } from './server-dist/creature/index.js'
@@ -301,18 +302,16 @@ route('GET', /^\/api\/creatures\/top$/, async (ctx) => {
 
 /* ---- 主页四周生灵层(公开:Top + 我的 selected) ---- */
 
-route('GET', /^\/api\/creatures\/field$/, async (ctx) => {
+async function fieldList(scopeKey) {
   const rank = await ensureRank(DATA_DIR, false)
   const topIds = new Set(rank.ids.slice(0, 5))
-  const mine = await listMine(DATA_DIR, ctx.scope.scopeKey)
+  const mine = await listMine(DATA_DIR, scopeKey)
   const visible = []
   const seen = new Set()
   for (const c of mine) {
-    if (c.selected) {
-      if (!seen.has(c.id)) {
-        seen.add(c.id)
-        visible.push({ ...publicCreature(c), mine: true })
-      }
+    if (c.selected && !seen.has(c.id)) {
+      seen.add(c.id)
+      visible.push({ ...publicCreature(c), mine: true })
     }
   }
   for (const id of topIds) {
@@ -323,7 +322,40 @@ route('GET', /^\/api\/creatures\/field$/, async (ctx) => {
       visible.push({ ...c, mine: false })
     }
   }
-  return { items: visible }
+  return visible
+}
+
+route('GET', /^\/api\/creatures\/field$/, async (ctx) => {
+  return { items: await fieldList(ctx.scope.scopeKey) }
+})
+
+/* ---- 生灵互相之间的对话(公开;短缓存 + 防重复) ---- */
+
+let chatterCache = { at: 0, turns: [] }
+const CHATTER_TTL_MS = 120 * 1000
+
+route('GET', /^\/api\/creatures\/chatter$/, async (ctx) => {
+  if (Date.now() - chatterCache.at < CHATTER_TTL_MS && chatterCache.turns.length) {
+    return { turns: chatterCache.turns }
+  }
+  try {
+    const items = await fieldList(ctx.scope.scopeKey)
+    const creatures = items.map((c) => ({
+      id: c.id,
+      name: c.name,
+      personality: c.personality,
+      descr: c.descr,
+    }))
+    const cfg = await aiConfig(DATA_DIR)
+    if (cfg.apiKey && creatures.length) {
+      const prev = chatterCache.turns.map((t) => t.text)
+      const { turns } = await chatterRound(cfg, creatures, prev)
+      if (turns.length) chatterCache = { at: Date.now(), turns }
+    }
+  } catch {
+    /* 生成失败:返回旧缓存(可能为空),前端回退到各自 say */
+  }
+  return { turns: chatterCache.turns }
 })
 
 /* ---- 排行榜(公开,Top100) ---- */

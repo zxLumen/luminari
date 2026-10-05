@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useId, useMemo, useRef } from 'react'
+import { useCallback, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import type { CreatureDna, FormState } from '../../lib/creature/index.js'
-import { mix, useCreatureLoop } from './shared'
+import { formOfDay, mix, useCreatureLoop } from './shared'
 import {
   IDENTITY,
   matStr,
@@ -89,6 +89,7 @@ function localMatrix(p: Part, o: Override | undefined, day: number, form: FormSt
 
 export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, minScale = 0.6 }: RigCreatureProps) {
   const rawId = useId().replace(/:/g, '')
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const rootRef = useRef<SVGGElement | null>(null)
   const glowRef = useRef<SVGCircleElement | null>(null)
   const gRefs = useRef<Record<string, SVGGElement | null>>({})
@@ -175,6 +176,45 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, min
     [box, rig, items, childrenOf, roots, matureDay, minScale],
   )
 
+  // 自适应画框:按「成熟态」量出真实内容包围盒(隐去背景辉光,并取几个扇动相位),
+  // 据此把 viewBox 设成刚好框住它 —— 任何尺寸/大翅膀都不会被裁,且各只观感一致
+  // (幼体在这个固定框里按比例更小,成长感仍在)。
+  useLayoutEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const glow = glowRef.current
+    const prevDisplay = glow?.getAttribute('display') ?? null
+    glow?.setAttribute('display', 'none')
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    for (const ts of [0, 0.35, 0.7, 1.05, 1.4]) {
+      draw(formOfDay(dna, matureDay), ts, matureDay)
+      const b = svg.getBBox()
+      if (!Number.isFinite(b.x) || (b.width === 0 && b.height === 0)) continue
+      minX = Math.min(minX, b.x)
+      minY = Math.min(minY, b.y)
+      maxX = Math.max(maxX, b.x + b.width)
+      maxY = Math.max(maxY, b.y + b.height)
+    }
+    if (glow) {
+      if (prevDisplay === null) glow.removeAttribute('display')
+      else glow.setAttribute('display', prevDisplay)
+    }
+    if (!Number.isFinite(minX)) {
+      svg.setAttribute('viewBox', `0 0 ${box} ${box}`)
+      return
+    }
+    const w = maxX - minX
+    const h = maxY - minY
+    const pad = Math.max(w, h) * 0.08 + 2
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    const size = Math.max(w, h) + pad * 2
+    svg.setAttribute('viewBox', `${cx - size / 2} ${cy - size / 2} ${size} ${size}`)
+  }, [draw, dna, matureDay, box])
+
   // 固定天数时也保持动画(fixedDay 只锁「形态/大小」,动作照常播放)
   useCreatureLoop(dna, draw, true, fixedDay)
 
@@ -183,6 +223,7 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, min
 
   return (
     <svg
+      ref={svgRef}
       className="rig-svg"
       width={box}
       height={box}

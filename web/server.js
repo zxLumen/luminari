@@ -303,8 +303,10 @@ route('GET', /^\/api\/creatures\/top$/, async (ctx) => {
 /* ---- 主页四周生灵层(公开:Top + 我的 selected) ---- */
 
 async function fieldList(scopeKey) {
-  const rank = await ensureRank(DATA_DIR, false)
-  const topIds = new Set(rank.ids.slice(0, 5))
+  // 用「实时按分排序」的榜(纯函数,无 LLM、无缓存)取 Top5:
+  // 避免旧榜缓存(stale-while-revalidate)导致主页显示错的生灵(如已不参排的却还在)。
+  const rows = await leaderboard(DATA_DIR, SCORE_VERSION, 5)
+  const says = (await readRank(DATA_DIR))?.says || {}
   const mine = await listMine(DATA_DIR, scopeKey)
   const visible = []
   const seen = new Set()
@@ -314,13 +316,23 @@ async function fieldList(scopeKey) {
       visible.push({ ...publicCreature(c), mine: true })
     }
   }
-  for (const id of topIds) {
-    if (seen.has(id)) continue
-    const c = rank.byId[id]
-    if (c) {
-      seen.add(id)
-      visible.push({ ...c, mine: false })
-    }
+  for (const r of rows) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    visible.push({
+      id: r.id,
+      descr: r.descr,
+      name: r.name,
+      total: r.total,
+      craft: r.craft,
+      appeal: r.appeal,
+      blueprint: r.blueprint,
+      createdAt: r.createdAt,
+      img: `/creatures-png/${pngName(r.id)}`,
+      say: says[r.id]?.text || '',
+      pos: says[r.id]?.pos || null,
+      mine: false,
+    })
   }
   return visible
 }

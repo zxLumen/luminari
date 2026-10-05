@@ -90,6 +90,7 @@ function localMatrix(p: Part, o: Override | undefined, day: number, form: FormSt
 export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, minScale = 0.6 }: RigCreatureProps) {
   const rawId = useId().replace(/:/g, '')
   const rootRef = useRef<SVGGElement | null>(null)
+  const glowRef = useRef<SVGCircleElement | null>(null)
   const gRefs = useRef<Record<string, SVGGElement | null>>({})
   const pathRefs = useRef<Record<string, SVGPathElement | null>>({})
 
@@ -126,10 +127,17 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, min
     (form: FormState, ts: number, day: number) => {
       const root = rootRef.current
       if (!root) return
-      // 整体尺寸随天数长大(60% → 110%);按 box 归一,strip 小图也不会溢出
+      // 整体尺寸随天数长大(幼体 → 成年更大器);按 box 归一,strip 小图也不会溢出
+      const grow = norm(day, 0, matureDay)
       const fit = (box * 0.42) / rig.span
-      const S = fit * (minScale + (1.1 - minScale) * norm(day, 0, matureDay))
+      const S = fit * (minScale + (1.22 - minScale) * grow)
       root.setAttribute('transform', `translate(${box / 2} ${box / 2}) scale(${S})`)
+      // 觉醒辉光:随阶段越来越亮、越来越大
+      const glow = glowRef.current
+      if (glow) {
+        glow.setAttribute('r', String(rig.span * (0.42 + 0.36 * grow)))
+        glow.setAttribute('opacity', String(0.5 + 0.5 * grow))
+      }
 
       const ov = rig.pose(form, ts, day)
       const world: Record<string, Mat> = {}
@@ -194,7 +202,7 @@ export function RigCreature({ dna, rig, box = 200, fixedDay, matureDay = 34, min
       </defs>
 
       <g ref={rootRef}>
-        <circle cx={0} cy={0} r={rig.span * 0.42} fill={`url(#${glowId})`} />
+        <circle ref={glowRef} cx={0} cy={0} r={rig.span * 0.42} fill={`url(#${glowId})`} />
         {items.map((it) => {
           const p = it.part
           const isLine = (p.stroke ?? 0) > 0

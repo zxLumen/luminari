@@ -39,8 +39,8 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      // render.html 离屏出图入口;embed.html 供主站透明 iframe 嵌入四周层
-      input: { main: 'index.html', render: 'render.html', embed: 'embed.html' },
+      // render.html 离屏出图入口(生成缩略图 / 榜单静态 PNG)
+      input: { main: 'index.html', render: 'render.html' },
     },
   },
 })

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { CreaturePanel } from './CreaturePanel.js'
-import { CreatureField } from './CreatureField.js'
 import { Leaderboard } from './Leaderboard.js'
 
 type Tab = 'mine' | 'rank' | 'settings'
@@ -23,8 +22,6 @@ export function App() {
       {tab === 'mine' && <CreaturePanel />}
       {tab === 'rank' && <Leaderboard />}
       {tab === 'settings' && <Settings />}
-      {/* 四周游走的生灵层(窄屏自动隐藏) */}
-      <CreatureField />
     </div>
   )
 }

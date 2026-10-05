@@ -29,9 +29,11 @@ export function scoreBlueprint(norm, descr) {
   return { cc, score }
 }
 
-/** 增益式成长护栏:appear 少于这个数、或第 0 天基础部件少于这个数,就带提示重试一次 */
-const MIN_APPEAR = 6
+/** 成长编排护栏:appear / 部件数落在区间外(太少、太碎、太杂)就带提示重试一次 */
+const MIN_APPEAR = 4
+const MAX_APPEAR = 10
 const MIN_BASE = 4
+const MAX_PARTS_SOFT = 22
 
 /** 生成一只生物的骨架:调 LLM + 解析 + 校验。失败抛错。 */
 export async function generateBlueprint(aiConfig, descr, retryHint) {
@@ -56,13 +58,16 @@ export async function generateBlueprint(aiConfig, descr, retryHint) {
       lastErr = '骨架不可用'
       continue
     }
-    // 增益式成长护栏:appear 太少、或第 0 天基础部件太少 → 带提示再试一次(保留最丰富的一份兜底)
+    // 成长编排护栏:太少 / 太碎 / 太杂 → 带提示再试一次(保留最后一份兜底)
     const appears = norm.parts.filter((p) => p.appear).length
     const base = norm.parts.filter((p) => !p.appear).length
-    if (appears >= MIN_APPEAR && base >= MIN_BASE) return norm
-    if (!best || norm.parts.length > best.parts.length) best = norm
-    lastErr = `成长编排不合格(appear=${appears}, base=${base})`
-    hint = `${retryHint ? retryHint + ';' : ''}上次这只:appear=${appears}(目标 8~16)、第 0 天就在的部件=${base}(要 ≥${MIN_BASE})。请让**身体/头/眼/主要肢体第 0 天就在(禁止给它们 appear,只用轻微 grow a≈0.85,b≈1.1)**,appear **只加在后来长出的附加部件上**,并分散到各阶段。`
+    const tooMany = appears > MAX_APPEAR || norm.parts.length > MAX_PARTS_SOFT
+    if (appears >= MIN_APPEAR && base >= MIN_BASE && !tooMany) return norm
+    best = norm
+    lastErr = `成长编排不合格(appear=${appears}, parts=${norm.parts.length})`
+    hint = tooMany
+      ? `${retryHint ? retryHint + ';' : ''}上次部件太多太杂(parts=${norm.parts.length}, appear=${appears})。请**精简**:总部件 ≤20、appear 4~8;只保留**有名字、有意义**的进化件(如一对巨翼、肩甲、王冠),删掉重复的小尖刺 / 小圆环 / 相似小翼,保持剪影干净可读。`
+      : `${retryHint ? retryHint + ';' : ''}上次:appear=${appears}(目标 4~8)、第 0 天就在的部件=${base}(要 ≥${MIN_BASE})。请让**身体/头/眼/主要肢体第 0 天就在(禁止给它们 appear,只用轻微 grow a≈0.9,b≈1.1)**,appear 只加在**有名字**的进化件上,分散到各阶段。`
   }
   if (best) return best
   throw new Error(lastErr)

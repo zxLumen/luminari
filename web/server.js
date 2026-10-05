@@ -393,7 +393,17 @@ route('POST', /^\/api\/creatures\/converse$/, async (ctx) => {
 /* ============================ 榜单缓存 + 精排 ============================ */
 
 async function invalidateRank(dataDir) {
-  await writeJson(path.join(dataDir, 'rank.json'), { ids: [], byId: {}, at: 0, reranked: false, round: 0, says: {}, stale: true })
+  // 只标 stale,保留旧 ids/byId/says —— 重算期间 field / Top 仍能先用旧榜,避免“更新后空窗”
+  const cur = await readRank(dataDir)
+  await writeJson(path.join(dataDir, 'rank.json'), {
+    ...(cur || {}),
+    ids: Array.isArray(cur?.ids) ? cur.ids : [],
+    byId: cur?.byId && typeof cur.byId === 'object' ? cur.byId : {},
+    says: cur?.says && typeof cur.says === 'object' ? cur.says : {},
+    reranked: cur?.reranked ?? false,
+    round: cur?.round ?? 0,
+    stale: true,
+  })
 }
 
 /**
@@ -405,15 +415,26 @@ async function ensureRank(dataDir, fresh) {
   const cached = await readRank(dataDir)
   const valid = cached && !cached.stale && cached.at && Date.now() - cached.at < RANK_TTL_MS
   if (valid && !fresh) return cached
-  if (rankInflight) return rankInflight
-  rankInflight = (async () => {
-    try {
-      return await recomputeRank(dataDir)
-    } finally {
-      rankInflight = null
+
+  const kick = () => {
+    if (!rankInflight) {
+      rankInflight = (async () => {
+        try {
+          return await recomputeRank(dataDir)
+        } finally {
+          rankInflight = null
+        }
+      })()
     }
-  })()
-  return rankInflight
+    return rankInflight
+  }
+
+  // 有旧榜:先返回旧数据,后台重算(stale-while-revalidate),避免更新后出现“空窗期”
+  if (!fresh && cached && Array.isArray(cached.ids) && cached.ids.length) {
+    kick().catch(() => {})
+    return cached
+  }
+  return kick()
 }
 
 async function recomputeRank(dataDir) {

@@ -63,8 +63,9 @@ export function CreaturePanel() {
   }, [active])
 
   useEffect(() => {
-    if (compiled) setDay(compiled.matureDay)
-  }, [compiled])
+    // 默认展示它「当前所处」的形态(按现实年龄),而不是成熟态
+    if (compiled && active) setDay(currentDayOf(active.createdAt, compiled.matureDay))
+  }, [compiled, active])
 
   /* ---- 改名 ---- */
   const rename = async (id: string, name: string) => {
@@ -221,7 +222,7 @@ export function CreaturePanel() {
             title={it.descr}
           >
             <span className="cp-slot-thumb">
-              {it.img ? <img src={it.img} alt={it.name} /> : <span>?</span>}
+              <MiniRig c={it} box={72} />
             </span>
             <span className="cp-slot-name">{it.name || '无名'}</span>
             <span className="cp-slot-score">{it.total.toFixed(0)}</span>
@@ -252,7 +253,9 @@ export function CreaturePanel() {
                 onClick={() => select(it.id)}
                 title={it.descr}
               >
-                <span className="cp-oth-thumb">{it.img ? <img src={it.img} alt={it.name} /> : <span>?</span>}</span>
+                <span className="cp-oth-thumb">
+                  <MiniRig c={it} box={56} />
+                </span>
                 <span className="cp-oth-name">{it.name || '无名'}</span>
                 <span className="cp-oth-score">{it.total.toFixed(0)}</span>
                 <span className="cp-oth-badge">{it.selected ? '参排' : '＋'}</span>
@@ -318,5 +321,40 @@ function Score({ label, value, big }: { label: string; value: number; big?: bool
       <span className="cp-score-v">{value.toFixed(0)}</span>
       <span className="cp-score-l">{label}</span>
     </div>
+  )
+}
+
+/** 现实年龄(天),封顶在成熟天数 */
+function currentDayOf(createdAt: string | undefined, matureDay: number): number {
+  const t0 = createdAt ? new Date(createdAt).getTime() : Date.now()
+  const age = (Date.now() - t0) / 86400000
+  return Math.round(Math.max(0, Math.min(matureDay, age)))
+}
+
+/** 栏位 / 列表里的小图:渲染活体、当前天数形态;无蓝图回退静态 PNG */
+function MiniRig({ c, box = 72 }: { c: MyCreature; box?: number }) {
+  const cc = useMemo(() => {
+    if (!c.blueprint) return null
+    const norm = normalizeBlueprint(c.blueprint)
+    if (!norm) return null
+    try {
+      return { ...compileBlueprint(norm), matureDay: norm.matureDay }
+    } catch {
+      return null
+    }
+  }, [c.blueprint])
+
+  if (!cc) return c.img ? <img src={c.img} alt={c.name} /> : <span>?</span>
+  return (
+    <span className="cp-live">
+      <RigCreature
+        dna={cc.dna}
+        rig={cc.rig}
+        box={box}
+        fixedDay={currentDayOf(c.createdAt, cc.matureDay)}
+        matureDay={cc.matureDay}
+        minScale={0.9}
+      />
+    </span>
   )
 }

@@ -452,6 +452,16 @@ body {
   height: 100%;
   object-fit: contain;
 }
+.cp-live {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cp-live svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .cp-slot-name {
   font-size: 12px;
 }

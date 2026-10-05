@@ -17,7 +17,7 @@
   全部生灵点选加入/移出参排。
 - **排行榜**:全站参与排行的生灵按分降序 Top100(名次 / 缩略图 / 名字 / 作者 / 分数 /
   提示词),点缩略图看大图预览。
-- **四周生灵层**:Top5 + 我的 selected 生灵沿视口四周游走(活体 `RigCreature` 动画),头顶冒「想说的话」(LLM 生成,带记忆)。另提供 `embed.html`(透明、仅此层)供 zxLumen-Blog 以全屏 `pointer-events:none` iframe 嵌到主站(见 `src/embed-entry.tsx`)。
+- **四周生灵层**:Top5 + 我的 selected 生灵沿视口四周游走(活体 `RigCreature` 动画),头顶冒「想说的话」(LLM 生成,带记忆)。**此层只在主站(zxLumen-Blog)内联渲染,应用页不再显示**;应用侧仅提供数据接口 `GET /api/creatures/field`。
 
 ## 技术栈
 
@@ -38,7 +38,7 @@ web/
     generate-prompt.ts  # 生成骨架的提示词
     creature-lib.js     # 生成/打分/出生名/对话 业务逻辑
     judge.js            # 视觉成对裁判 + BT 精排
-  src/                  # React 前端(面板 / 四周生灵层 / 渲染器)
+  src/                  # React 前端(面板 / 排行榜 / 渲染器)
   server-dist/          # lib/**.ts 编译产物(server 运行时用)
 ```
 

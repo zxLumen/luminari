@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CreaturePanel } from './CreaturePanel.js'
 import { Leaderboard } from './Leaderboard.js'
+import { FloatsPref } from './FloatsPref.js'
 import { api } from './api.js'
 import type { Settings, ProviderSlot } from './api.js'
 
@@ -10,6 +11,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('mine')
   return (
     <div className="app">
+      <FloatsPref />
       <nav className="app-tabs">
         <button className={tab === 'mine' ? 'is-on' : ''} onClick={() => setTab('mine')}>
           我的生灵

@@ -142,7 +142,7 @@ route('GET', /^\/api\/status$/, async () => {
   }
 })
 
-route('GET', /^\/api\/settings$/, async () => publicSettings(DATA_DIR))
+route('GET', /^\/api\/settings$/, async (ctx) => ({ ...(await publicSettings(DATA_DIR)), isOwner: ctx.scope.isOwner }))
 
 route('POST', /^\/api\/settings$/, async (ctx) => {
   if (!ctx.scope.isOwner) throw new HttpError(403, '仅站长可改配置')

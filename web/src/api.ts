@@ -37,6 +37,38 @@ export interface MyCreature {
   dna?: CreatureDna
 }
 
+export interface ProviderSlot {
+  id: string
+  label: string
+  defaultModel: string
+  defaultBaseURL: string
+  model: string
+  baseURL: string
+  hasKey: boolean
+  keyMask: string | null
+}
+
+export interface Settings {
+  provider: string
+  model: string
+  baseURL: string
+  maxTokens: number
+  temperature: number
+  visitorAi: boolean
+  hasKey: boolean
+  keyMask: string | null
+  isOwner: boolean
+  providers: ProviderSlot[]
+}
+
+export type SettingsPatch = {
+  provider?: string
+  providers?: Record<string, { model?: string; baseURL?: string }>
+  maxTokens?: number
+  temperature?: number
+  visitorAi?: boolean
+}
+
 export const api = {
   status: () => fetch('/api/status').then(j) as Promise<{ scoreVersion: string; maxCreatures: number; dailyCreate: number }>,
   mine: () => fetch('/api/creature/mine').then(j) as Promise<{ count: number; max: number; isOwner: boolean; selectedCount: number; items: MyCreature[] }>,
@@ -69,6 +101,19 @@ export const api = {
   top: (n = 5) => fetch(`/api/creatures/top?n=${n}`).then(j) as Promise<{ items: FieldCreature[] }>,
   leaderboard: (n = 100) =>
     fetch(`/api/creatures/leaderboard?n=${n}`).then(j) as Promise<{ count: number; items: RankRow[] }>,
+  settings: () => fetch('/api/settings').then(j) as Promise<Settings>,
+  saveSettings: (patch: SettingsPatch) =>
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }).then(j) as Promise<Settings>,
+  saveKey: (provider: string, key: string) =>
+    fetch('/api/settings/key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, key }),
+    }).then(j) as Promise<Settings>,
 }
 
 export interface RankRow {
